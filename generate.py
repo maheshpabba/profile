@@ -151,6 +151,20 @@ def generate_html(md_path: Path, index_entry: dict | None = None) -> dict:
   <meta name="twitter:title" content="{title}">
   <meta name="twitter:description" content="{excerpt}">
   <meta name="twitter:image" content="{BASE_URL}/{image.lstrip('../')}">
+  <link rel="canonical" href="{BASE_URL}/posts/{slug}.html">
+  <script type="application/ld+json">
+  {{
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    "headline": {json.dumps(title)},
+    "description": {json.dumps(excerpt)},
+    "image": "{BASE_URL}/{image.lstrip('../')}",
+    "datePublished": "{date}",
+    "author": {{"@type": "Person", "name": "Mahesh Pabba", "url": "{BASE_URL}/index.html"}},
+    "publisher": {{"@type": "Person", "name": "Mahesh Pabba"}},
+    "mainEntityOfPage": "{BASE_URL}/posts/{slug}.html"
+  }}
+  </script>
 
   <link rel="shortcut icon" href="../favicon.ico">
   <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css" rel="stylesheet">
@@ -337,6 +351,7 @@ def generate_blog_home(posts: list[dict]):
   <meta property="og:title" content="Blog — Mahesh Pabba">
   <meta property="og:description" content="Articles on AI infrastructure, Kubernetes, SAP, cloud architecture and automation.">
   <meta property="og:image" content="assets/images/profile-lg.jpg">
+  <link rel="canonical" href="{BASE_URL}/blog-home.html">
   <link rel="shortcut icon" href="favicon.ico">
   <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
@@ -425,6 +440,49 @@ def update_homepage_latest_posts(posts: list[dict], count: int = 3):
     print(f"  ✓ Updated: index.html Latest Blog Posts ({len(posts_sorted)} posts)")
 
 
+def generate_sitemap(posts: list[dict]):
+    """Write sitemap.xml at the repo root listing every static page and post."""
+    today = datetime.date.today().isoformat()
+    static_pages = [
+        ("", today),                 # homepage ("/" canonical form)
+        ("resume.html", today),
+        ("blog-home.html", today),
+        ("contact.html", today),
+    ]
+    urls = []
+    for path, lastmod in static_pages:
+        urls.append((f"{BASE_URL}/{path}", lastmod))
+    for post in sorted(posts, key=lambda p: p["date"], reverse=True):
+        urls.append((f"{BASE_URL}/posts/{post['slug']}.html", post["date"]))
+
+    entries = "\n".join(
+        f"  <url>\n    <loc>{url}</loc>\n    <lastmod>{lastmod}</lastmod>\n  </url>"
+        for url, lastmod in urls
+    )
+    xml = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+        f"{entries}\n"
+        "</urlset>\n"
+    )
+    out = Path(__file__).parent / "sitemap.xml"
+    out.write_text(xml, encoding="utf-8")
+    print(f"  ✓ Generated: sitemap.xml ({len(urls)} URLs)")
+
+
+def generate_robots_txt():
+    """Write robots.txt at the repo root, allowing all crawlers and pointing to the sitemap."""
+    content = (
+        "User-agent: *\n"
+        "Allow: /\n"
+        "\n"
+        f"Sitemap: {BASE_URL}/sitemap.xml\n"
+    )
+    out = Path(__file__).parent / "robots.txt"
+    out.write_text(content, encoding="utf-8")
+    print("  ✓ Generated: robots.txt")
+
+
 def generate_all():
     """Generate HTML for all .md files in posts/ and update index."""
     md_files = sorted(POSTS_DIR.glob("*.md"))
@@ -444,6 +502,8 @@ def generate_all():
     update_index(posts)
     generate_blog_home(posts)
     update_homepage_latest_posts(posts)
+    generate_sitemap(posts)
+    generate_robots_txt()
     print("\nDone! Push to GitHub to publish.\n")
 
 
