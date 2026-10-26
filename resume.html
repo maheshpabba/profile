@@ -191,6 +191,7 @@
         <div class="divider my-2 text-xs font-semibold text-primary">Infrastructure Automation &amp; DevOps</div>
         <ul class="space-y-1 text-sm text-base-content/75 list-none">
           <li class="flex gap-2"><span class="text-primary shrink-0">▸</span><span>Built and published <a href="https://github.com/maheshpabba/ansible-openshift" target="_blank" rel="noopener" class="link link-primary">ansible-openshift</a> — end-to-end Ansible automation for bare-metal OpenShift deployments via Red Hat Assisted Installer API: Redfish BMC for ISO mounting, NMState static network config generation, OLM operator installation (NFD, GPU, LVM), state-aware resumable execution, and Day-2 node add/remove operations.</span></li>
+          <li class="flex gap-2"><span class="text-primary shrink-0">▸</span><span>Authored <a href="https://github.com/maheshpabba/AI-Factory-Best-Practices" target="_blank" rel="noopener" class="link link-primary">AI-Factory-Best-Practices</a> — reference build sequence and manifests for NVIDIA AI Enterprise (NVAIE) on bare-metal OpenShift: NMState network planes, GPU-worker MachineConfigPool, GPU/Network Operator driver-load ordering, and dual-path NCCL/nvcrectl cluster validation.</span></li>
           <li class="flex gap-2"><span class="text-primary shrink-0">▸</span><span>Automated compute provisioning for Cisco UCS, Fabric Interconnects, and OpenShift clusters using Terraform, Ansible, and Python — significantly reducing customer deployment time.</span></li>
           <li class="flex gap-2"><span class="text-primary shrink-0">▸</span><span>Deployed and commissioned <strong>Azure Stack Hub Appliance on Cisco UCS hardware</strong>; configured BGP on Cisco routers for on-premises to Azure Express Route connectivity; enabling hybrid cloud SAP and enterprise workloads.</span></li>
           <li class="flex gap-2"><span class="text-primary shrink-0">▸</span><span>Contributed to Cisco <strong>BPA (Business Process Automation)</strong> platform — an internal automation product built with an Angular web frontend, multiple Python/Java backend microservice controllers, Cisco NSO for Nexus and IOS-XE device upgrades, Kafka message bus, and a containerized DevOps stack (Docker, Kubernetes, MongoDB, Kong API Gateway, Grafana).</span></li>
@@ -405,6 +406,15 @@
             <a href="https://github.com/maheshpabba/ansible-openshift" target="_blank" rel="noopener" class="font-semibold text-primary link link-hover">ansible-openshift — Bare-Metal OpenShift Automation</a>
             <p class="text-base-content/60 text-xs mt-1">Open-Source GitHub Project &middot; Ansible &middot; Red Hat OpenShift</p>
             <p class="text-base-content/75 text-xs mt-1">End-to-end Ansible automation for deploying OpenShift clusters on bare-metal via the Red Hat Assisted Installer API. Features: <strong>Redfish BMC</strong> automation for discovery ISO mounting, <strong>NMState</strong> static network configuration generation per server, OLM operator management (NFD, GPU, LVM, NMState), state-aware resumable deployments (safe to interrupt and re-run), and Day-2 operations for adding/removing worker nodes.</p>
+          </div>
+        </div>
+        <div class="divider my-3"></div>
+        <div class="flex gap-3 items-start text-sm">
+          <i class="fab fa-github text-base-content/60 w-4 shrink-0 mt-0.5"></i>
+          <div>
+            <a href="https://github.com/maheshpabba/AI-Factory-Best-Practices" target="_blank" rel="noopener" class="font-semibold text-primary link link-hover">AI-Factory Best Practices — NVAIE on Bare-Metal OpenShift</a>
+            <p class="text-base-content/60 text-xs mt-1">Open-Source GitHub Project &middot; NVIDIA AI Enterprise &middot; Red Hat OpenShift</p>
+            <p class="text-base-content/75 text-xs mt-1">Reference build sequence and manifests for standing up NVIDIA AI Enterprise GPU clusters on bare-metal OpenShift: NMState network plane configuration, a dedicated GPU-worker <strong>MachineConfigPool</strong>, NVIDIA Network Operator and GPU Operator manifests with explicit driver-load ordering to avoid kernel-module race conditions, and dual-path validation via hand-written Kubeflow MPIJob/TrainJob NCCL tests plus NVIDIA's <strong>nvcrectl</strong> Cluster Readiness Engine.</p>
           </div>
         </div>
       </div>

@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="solarized-light">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Standing up a production GPU cluster is more than installing an operator. Three network planes, a dedicated MachineConfigPool for GPU nodes, a driver-load race between two operators, and a validation suite that has to prove the fabric before anyone trains a model on it — here's the full build sequence, distilled into a public reference repo.">
+  <meta name="author" content="Mahesh Pabba">
+
+  <!-- Open Graph (LinkedIn / Twitter preview) -->
+  <meta property="og:title" content=""AI-Factory Best Practices: Deploying NVIDIA AI Enterprise on Bare-Metal OpenShift"">
+  <meta property="og:description" content="Standing up a production GPU cluster is more than installing an operator. Three network planes, a dedicated MachineConfigPool for GPU nodes, a driver-load race between two operators, and a validation suite that has to prove the fabric before anyone trains a model on it — here's the full build sequence, distilled into a public reference repo.">
+  <meta property="og:image" content="https://maheshpabba.com/assets/images/blog/covers/2026-06-21-ai-factory-best-practices-nvaie-openshift.jpg">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://maheshpabba.com/posts/2026-06-21-ai-factory-best-practices-nvaie-openshift.html">
+  <meta property="article:published_time" content="2026-06-21">
+  <meta property="article:author" content="Mahesh Pabba">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content=""AI-Factory Best Practices: Deploying NVIDIA AI Enterprise on Bare-Metal OpenShift"">
+  <meta name="twitter:description" content="Standing up a production GPU cluster is more than installing an operator. Three network planes, a dedicated MachineConfigPool for GPU nodes, a driver-load race between two operators, and a validation suite that has to prove the fabric before anyone trains a model on it — here's the full build sequence, distilled into a public reference repo.">
+  <meta name="twitter:image" content="https://maheshpabba.com/assets/images/blog/covers/2026-06-21-ai-factory-best-practices-nvaie-openshift.jpg">
+
+  <link rel="shortcut icon" href="../favicon.ico">
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script defer src="../assets/fontawesome/js/all.js"></script>
+  <link rel="stylesheet" href="../assets/css/site.css">
+  <link rel="stylesheet" href="../assets/css/blog-post.css">
+  <link rel="stylesheet" href="../assets/plugins/highlight/styles/monokai-sublime.css">
+  <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/highlight.min.js"></script>
+</head>
+<body class="min-h-screen bg-base-100">
+
+<!-- Navbar — posts/ pages (paths prefixed with ../) -->
+<div class="navbar bg-base-200 shadow-md sticky top-0 z-50 px-4 lg:px-8">
+  <div class="navbar-start">
+    <div class="dropdown">
+      <label tabindex="0" class="btn btn-ghost lg:hidden"><i class="fas fa-bars text-lg"></i></label>
+      <ul tabindex="0" class="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow bg-base-200 rounded-box w-52">
+        <li><a href="../index.html">About</a></li>
+        <li><a href="../resume.html">Resume</a></li>
+        <li><a href="../blog-home.html" class="font-semibold">Blog</a></li>
+        <li><a href="../contact.html">Contact</a></li>
+      </ul>
+    </div>
+    <a href="../index.html" class="btn btn-ghost text-xl font-bold tracking-tight">Mahesh Pabba</a>
+  </div>
+  <div class="navbar-center hidden lg:flex">
+    <ul class="menu menu-horizontal px-1 gap-1">
+      <li><a href="../index.html" class="font-medium rounded-lg">About</a></li>
+      <li><a href="../resume.html" class="font-medium rounded-lg">Resume</a></li>
+      <li><a href="../blog-home.html" class="font-medium rounded-lg bg-base-300">Blog</a></li>
+      <li><a href="../contact.html" class="font-medium rounded-lg">Contact</a></li>
+    </ul>
+  </div>
+  <div class="navbar-end">
+    <a href="mailto:mahesh.pabba@gmail.com" class="btn btn-primary btn-sm">
+      <i class="fas fa-paper-plane mr-1"></i> Hire Me
+    </a>
+  </div>
+</div>
+
+
+<!-- Hero banner -->
+<div class="w-full h-64 overflow-hidden relative">
+  <img src="../assets/images/blog/covers/2026-06-21-ai-factory-best-practices-nvaie-openshift.jpg" alt=""AI-Factory Best Practices: Deploying NVIDIA AI Enterprise on Bare-Metal OpenShift"" class="w-full h-full object-cover opacity-40">
+  <div class="absolute inset-0 bg-gradient-to-t from-base-100 to-transparent"></div>
+</div>
+
+<div class="max-w-3xl mx-auto px-4 pb-20 -mt-12 relative">
+
+  <!-- Post header -->
+  <div class="mb-10">
+    <div class="flex flex-wrap gap-2 mb-4"><span class="badge badge-ghost badge-sm">AI</span> <span class="badge badge-ghost badge-sm">NVAIE</span> <span class="badge badge-ghost badge-sm">OpenShift</span> <span class="badge badge-ghost badge-sm">GPU</span> <span class="badge badge-ghost badge-sm">RDMA</span> <span class="badge badge-ghost badge-sm">NCCL</span> <span class="badge badge-ghost badge-sm">Networking</span> <span class="badge badge-ghost badge-sm">Cisco</span></div>
+    <h1 class="text-3xl lg:text-4xl font-bold leading-tight mb-4">"AI-Factory Best Practices: Deploying NVIDIA AI Enterprise on Bare-Metal OpenShift"</h1>
+    <div class="flex items-center gap-4 text-sm text-base-content/40">
+      <span><i class="fas fa-user mr-1"></i> Mahesh Pabba</span>
+      <span><i class="fas fa-calendar mr-1"></i> 2026-06-21</span>
+      <a href="../blog-home.html" class="link link-hover ml-auto"><i class="fas fa-arrow-left mr-1"></i> All posts</a>
+    </div>
+    <div class="divider"></div>
+  </div>
+
+  <!-- Article body -->
+  <article class="prose max-w-none">
+    <p>Every NVIDIA AI Enterprise (NVAIE) deployment on OpenShift follows roughly the same sequence — and almost nobody writes it down in one place. The official docs cover each operator in isolation; the gaps between them (which order to install things in, which node labels gate which component, what a driver-load race actually looks like in practice) get relearned by every team that builds one of these clusters.</p>
+<p>I turned the sequence I use into a public reference: <a href="https://github.com/maheshpabba/AI-Factory-Best-Practices"><strong>maheshpabba/AI-Factory-Best-Practices</strong></a>. It mirrors an internal AI-Factory build document section by section, with every section linking to the actual manifests, scripts, and test artifacts that implement it — not just prose.</p>
+<p>This post walks through the architecture decisions behind it.</p>
+<hr />
+<h2 id="three-networks-not-one">Three Networks, Not One</h2>
+<p>A GPU worker node in this design carries three logically separate network planes:</p>
+<ul>
+<li><strong>Frontend / primary CNI</strong> — the OpenShift SDN plane, used for node management and general cluster traffic.</li>
+<li><strong>East/West compute (scale-out) RDMA fabric</strong> — the high-speed interconnect NCCL collectives run across, node to node.</li>
+<li><strong>Storage / backend fabric</strong> — isolated from compute traffic so a saturated training job doesn't starve storage I/O, or vice versa.</li>
+</ul>
+<p>Getting this right starts before the cluster exists. Before you ever open the Assisted Installer, you need every node's hostname, MAC address, static IP/subnet/gateway, plus cluster DNS/NTP/VIPs — captured in a table, then converted into <a href="https://nmstate.io/">NMState</a> YAML so the install is unattended and repeatable instead of a sequence of manual web-console clicks per node.</p>
+<p>Doing this by hand for more than a handful of nodes is where mistakes creep in — a transposed MAC address, a wrong VLAN — so the repo includes <a href="https://github.com/maheshpabba/AI-Factory-Best-Practices/blob/Dev/Scripts/cluster-utility.sh"><code>Scripts/cluster-utility.sh</code></a> and its PowerShell twin, <code>cluster-utility.ps1</code>. They discover nodes by name or role, print RDMA device/PCIe/interface tables filtered by adapter family (ConnectX-7, ConnectX-8, BlueField), and generate <code>NodeNetworkConfigurationPolicy</code> (NNCP) YAML directly from what they find on the hardware — rather than from a spreadsheet that can drift out of sync with reality.</p>
+<hr />
+<h2 id="nmstate-declarative-network-state-reconciled-continuously">NMState: Declarative Network State, Reconciled Continuously</h2>
+<p>Once the cluster exists, the NMState Operator takes over ongoing network configuration. The model is simple but easy to get backwards the first time:</p>
+<ul>
+<li><strong>NNCP</strong> (<code>NodeNetworkConfigurationPolicy</code>) — the <em>desired</em> state you declare: interfaces, MTU, VLANs, for one or more nodes.</li>
+<li><strong>NNS</strong> (<code>NodeNetworkState</code>) — the <em>read-only current state</em> NMState reports back, per node.</li>
+</ul>
+<p>You write NNCPs; NMState reconciles live interfaces toward them and reports NNS back so you can verify convergence. The <a href="https://github.com/maheshpabba/AI-Factory-Best-Practices/blob/Dev/nmstate"><code>nmstate/</code></a> directory in the repo holds the actual <code>nncp-*.yaml</code> and <code>nns-*.yaml</code> objects used on this cluster's workers — generated by the same <code>cluster-utility</code> script and applied with a plain <code>oc apply -f</code>.</p>
+<hr />
+<h2 id="a-dedicated-machineconfigpool-for-gpu-nodes">A Dedicated MachineConfigPool for GPU Nodes</h2>
+<p>GPU worker nodes need kernel-level changes that the rest of the cluster should never see:</p>
+<ul>
+<li>Blacklist the inbox <code>irdma</code> / <code>rpcrdma</code> kernel modules — they conflict with the NVIDIA/Mellanox MOFED driver stack.</li>
+<li>Disable IOMMU.</li>
+<li>Configure huge pages.</li>
+</ul>
+<p>Apply these cluster-wide and every node reboots to pick them up, including nodes that will never touch a GPU. The fix is a dedicated <code>MachineConfigPool</code> — <a href="https://github.com/maheshpabba/AI-Factory-Best-Practices/blob/Dev/Misc/custom-role-gpuworker.yaml"><code>Misc/custom-role-gpuworker.yaml</code></a> — scoped to a custom <code>gpu-worker</code> role, so only the nodes that opted into that role ever reboot for these changes.</p>
+<hr />
+<h2 id="the-operator-stack-and-the-race-condition-between-two-of-them">The Operator Stack — and the Race Condition Between Two of Them</h2>
+<p>NVIDIA AI Enterprise on OpenShift is really four operators working together:</p>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Responsibility</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Node Feature Discovery</td>
+<td>Labels nodes with detected PCI/GPU/NIC hardware so the operators below can target the right ones</td>
+</tr>
+<tr>
+<td>NVIDIA Maintenance Operator</td>
+<td>Coordinates cordon/drain for firmware updates and driver reloads</td>
+</tr>
+<tr>
+<td>NVIDIA Network Operator</td>
+<td>Provisions MOFED/DOCA-OFED, the RDMA device plugin, and NIC QoS/VLAN configuration</td>
+</tr>
+<tr>
+<td>NVIDIA GPU Operator</td>
+<td>Provisions the GPU driver, container toolkit, device plugin, and DCGM monitoring</td>
+</tr>
+</tbody>
+</table>
+<p>The Network Operator and the GPU Operator both load kernel modules on the same nodes — and if they do it at the same time, you get a race condition that manifests as intermittent driver load failures that are maddening to debug after the fact, because the symptom shows up on a random subset of nodes on a random day.</p>
+<p>The fix lives in how the GPU Operator is configured. Rather than letting <code>ClusterPolicy</code> manage the GPU driver directly, the repo splits driver management out:</p>
+<ul>
+<li><code>ClusterPolicy</code> configures every GPU Operator component <strong>except</strong> the driver (<code>driver.enabled: false</code>, <code>driver.useNvidiaDriverCRD: true</code>) — see <a href="https://github.com/maheshpabba/AI-Factory-Best-Practices/blob/Dev/GPU-Operator/gpu-cluster-policy.yaml"><code>GPU-Operator/gpu-cluster-policy.yaml</code></a>.</li>
+<li>A separate <code>NVIDIADriver</code> object, per node (<a href="https://github.com/maheshpabba/AI-Factory-Best-Practices/blob/Dev/GPU-Operator/gpu-driver.yaml"><code>GPU-Operator/gpu-driver.yaml</code></a>), supplies the driver itself — gated on the Network Operator's <code>network.nvidia.com/operator.mofed.wait</code> node label.</li>
+</ul>
+<p>The GPU driver simply doesn't load until the Network Operator has finished its own kernel module work and cleared that label. Two operators, one shared resource, one explicit ordering gate instead of a hope that timing works out.</p>
+<p>On the networking side, <code>NicClusterPolicy</code> handles the cluster-wide singleton components (DOCA telemetry, the NIC Configuration Operator), <code>NicNodePolicy</code> handles the per-node DOCA-OFED driver and RDMA shared device plugin selected by hostname, and <code>NicConfigurationTemplate</code> tunes RoCEv2 QoS — PFC, ECN, trust mode — separately for the backend/compute fabric and the storage fabric.</p>
+<hr />
+<h2 id="testing-two-independent-paths-to-the-same-answer">Testing: Two Independent Paths to the Same Answer</h2>
+<p>A cluster that <em>installs</em> cleanly and a cluster that's actually ready for distributed training are two different claims. The repo validates the fabric two ways, deliberately kept independent of each other:</p>
+<ol>
+<li><strong>Hand-written Kubeflow <code>MPIJob</code> / <code>TrainJob</code> manifests</strong> — full control over NCCL environment variables and privileged pods, used as an independent baseline that doesn't depend on any NVIDIA tooling being correctly configured.</li>
+<li><strong>NVIDIA's <code>nvcrectl</code> Cluster Readiness Engine</strong> — <code>WorkloadRun</code> / <code>Certification</code> CRDs, producing NVIDIA's standard certification report format.</li>
+</ol>
+<p>Both paths exercise the same NCCL collectives — AllGather, AllReduce, AllToAll, ReduceScatter — plus a short Nemotron5 Megatron-LM training smoke test, and a continuous RDMA QoS/PFC fairness test under sustained load. If the hand-written path and the vendor-tooling path agree, you've validated both the fabric and the tooling. If they disagree, you've found a bug before a researcher does.</p>
+<p>Running <code>nvcrectl</code> workloads requires a mutating admission webhook for the privileged/macvlan access the test pods need — the same <code>cluster-utility.sh</code> script handles that too, via <code>-T prepare/status/cleanup</code>, documented in <a href="https://github.com/maheshpabba/AI-Factory-Best-Practices/blob/Dev/Scripts/cluster-utility.md"><code>Scripts/cluster-utility.md</code></a>.</p>
+<hr />
+<h2 id="publishing-infrastructure-docs-without-leaking-infrastructure">Publishing Infrastructure Docs Without Leaking Infrastructure</h2>
+<p>The one piece of this repo that isn't a manifest or a script is a policy: what gets published and what doesn't.</p>
+<p>The repository runs two branches on purpose. <code>Dev</code> is the working collection — environment-specific examples, real node names, real addresses, in-progress scripts. <code>main</code> contains only material that's been explicitly reviewed and approved for public visibility. Nothing gets merged or cherry-picked from <code>Dev</code> into <code>main</code>; publishing means building a clean snapshot of specific files on top of <code>main</code>, reviewing the staged diff, and committing that — every time, not as a one-off.</p>
+<p>It sounds like overhead until you remember that this is a public GitHub repository, and that deleting a file later does not remove it from Git history. The appendix is the clearest example: the source document includes an example leaf switch configuration with live BGP peer passwords and admin SSH keys. The equivalent file here — <code>switch-configs/switch-config.txt</code> — is <code>.gitignore</code>'d and has never been committed to either branch. Sanitizing a file <em>before</em> its first commit is the only sanitization that actually works; everything after that is incident response.</p>
+<hr />
+<h2 id="why-this-exists-as-a-repo-and-not-just-a-doc">Why This Exists as a Repo and Not Just a Doc</h2>
+<p>Most of what makes an AI-Factory build succeed or fail isn't a single setting — it's the ordering: NMState before cluster creation, the GPU role's <code>MachineConfigPool</code> before the operators land, the Network Operator's MOFED label before the GPU driver loads, both test paths before anyone trains on the cluster. Writing that down as prose gets stale the moment a manifest changes. Writing it down as a README that links directly to the manifests, scripts, and test results it describes means the documentation and the implementation can't drift apart without someone noticing.</p>
+<p>That's the whole premise of <a href="https://github.com/maheshpabba/AI-Factory-Best-Practices">AI-Factory-Best-Practices</a>: a build sequence you can read top to bottom, and a repo you can <code>oc apply -f</code> against, kept in the same place.</p>
+<hr />
+<p><em>Have questions? <a href="../contact.html">Reach out</a></em></p>
+  </article>
+
+  <!-- Share section -->
+  <div class="divider mt-12"></div>
+  <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+    <div>
+      <p class="font-semibold mb-2">Share this post</p>
+      <div class="flex gap-2">
+        <a href="https://www.linkedin.com/sharing/share-offsite/?url=https://maheshpabba.com/posts/2026-06-21-ai-factory-best-practices-nvaie-openshift.html"
+           target="_blank" rel="noopener"
+           class="btn btn-outline btn-sm gap-2">
+          <i class="fab fa-linkedin-in"></i> LinkedIn
+        </a>
+        <a href="https://twitter.com/intent/tweet?url=https://maheshpabba.com/posts/2026-06-21-ai-factory-best-practices-nvaie-openshift.html&text="AI-Factory Best Practices: Deploying NVIDIA AI Enterprise on Bare-Metal OpenShift""
+           target="_blank" rel="noopener"
+           class="btn btn-ghost btn-sm gap-2">
+          <i class="fab fa-twitter"></i> Twitter/X
+        </a>
+      </div>
+    </div>
+    <a href="../blog-home.html" class="btn btn-primary btn-sm">
+      <i class="fas fa-arrow-left mr-1"></i> More posts
+    </a>
+  </div>
+
+  <!-- Author card -->
+  <div class="card bg-base-200 mt-10">
+    <div class="card-body flex-row gap-5 items-center p-6">
+      <div class="w-16 h-16 rounded-full overflow-hidden shrink-0">
+        <img src="../assets/images/profile-lg.jpg" alt="Mahesh Pabba" class="w-full h-full object-cover object-center">
+      </div>
+      <div>
+        <p class="font-bold">Mahesh Pabba</p>
+        <p class="text-sm text-base-content/60">AI &amp; Cloud Architect · Cisco · 22+ years in enterprise infrastructure</p>
+        <div class="flex gap-2 mt-2">
+          <a href="https://www.linkedin.com/in/maheshpabba" target="_blank" rel="noopener" class="btn btn-ghost btn-xs"><i class="fab fa-linkedin-in"></i></a>
+          <a href="https://github.com/maheshpabba" target="_blank" rel="noopener" class="btn btn-ghost btn-xs"><i class="fab fa-github"></i></a>
+          <a href="mailto:mahesh.pabba@gmail.com" class="btn btn-ghost btn-xs"><i class="fas fa-envelope"></i></a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Footer — posts/ pages (paths prefixed with ../). Use 2026 as replacement placeholder. -->
+<footer class="footer footer-center p-10 bg-base-300 text-base-content mt-10">
+  <nav class="flex flex-wrap gap-4 justify-center">
+    <a href="../index.html" class="link link-hover">About</a>
+    <a href="../resume.html" class="link link-hover">Resume</a>
+    <a href="../blog-home.html" class="link link-hover">Blog</a>
+    <a href="../contact.html" class="link link-hover">Contact</a>
+  </nav>
+  <nav class="flex gap-4">
+    <a href="https://www.linkedin.com/in/maheshpabba" target="_blank" rel="noopener" class="btn btn-ghost btn-circle btn-sm"><i class="fab fa-linkedin-in text-lg"></i></a>
+    <a href="https://github.com/maheshpabba" target="_blank" rel="noopener" class="btn btn-ghost btn-circle btn-sm"><i class="fab fa-github text-lg"></i></a>
+    <a href="mailto:mahesh.pabba@gmail.com" class="btn btn-ghost btn-circle btn-sm"><i class="fas fa-envelope text-lg"></i></a>
+  </nav>
+  <aside><p class="text-base-content/50 text-sm">&#169; 2026 Mahesh Pabba &middot; AI &amp; Cloud Architect</p></aside>
+</footer>
+
+
+<script>hljs.highlightAll();</script>
+</body>
+</html>

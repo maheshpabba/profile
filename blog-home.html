@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="solarized-light">
+<html lang="en" data-theme="night">
 <head>
   <title>Blog — Mahesh Pabba</title>
   <meta charset="utf-8">
@@ -61,6 +61,14 @@
 <div class="max-w-5xl mx-auto px-4 pt-10">
   <div class="flex flex-wrap gap-2" id="tag-filters">
     <button class="btn btn-primary btn-sm tag-btn" data-tag="all">All</button>
+    <button class="btn btn-outline btn-sm tag-btn" data-tag="AI">AI</button>
+    <button class="btn btn-outline btn-sm tag-btn" data-tag="NVAIE">NVAIE</button>
+    <button class="btn btn-outline btn-sm tag-btn" data-tag="OpenShift">OpenShift</button>
+    <button class="btn btn-outline btn-sm tag-btn" data-tag="GPU">GPU</button>
+    <button class="btn btn-outline btn-sm tag-btn" data-tag="RDMA">RDMA</button>
+    <button class="btn btn-outline btn-sm tag-btn" data-tag="NCCL">NCCL</button>
+    <button class="btn btn-outline btn-sm tag-btn" data-tag="Networking">Networking</button>
+    <button class="btn btn-outline btn-sm tag-btn" data-tag="Cisco">Cisco</button>
     <button class="btn btn-outline btn-sm tag-btn" data-tag="Enterprise AI">Enterprise AI</button>
     <button class="btn btn-outline btn-sm tag-btn" data-tag="Redis">Redis</button>
     <button class="btn btn-outline btn-sm tag-btn" data-tag="Rate Limiting">Rate Limiting</button>
@@ -86,9 +94,7 @@
     <button class="btn btn-outline btn-sm tag-btn" data-tag="AI Design">AI Design</button>
     <button class="btn btn-outline btn-sm tag-btn" data-tag="Agent Architecture">Agent Architecture</button>
     <button class="btn btn-outline btn-sm tag-btn" data-tag="Business Problems">Business Problems</button>
-    <button class="btn btn-outline btn-sm tag-btn" data-tag="GPU">GPU</button>
     <button class="btn btn-outline btn-sm tag-btn" data-tag="NVIDIA">NVIDIA</button>
-    <button class="btn btn-outline btn-sm tag-btn" data-tag="NVAIE">NVAIE</button>
     <button class="btn btn-outline btn-sm tag-btn" data-tag="Model Selection">Model Selection</button>
     <button class="btn btn-outline btn-sm tag-btn" data-tag="Hardware">Hardware</button>
     <button class="btn btn-outline btn-sm tag-btn" data-tag="Distributed Inference">Distributed Inference</button>
@@ -99,7 +105,6 @@
     <button class="btn btn-outline btn-sm tag-btn" data-tag="Cost Optimization">Cost Optimization</button>
     <button class="btn btn-outline btn-sm tag-btn" data-tag="AI Architecture">AI Architecture</button>
     <button class="btn btn-outline btn-sm tag-btn" data-tag="Data Security">Data Security</button>
-    <button class="btn btn-outline btn-sm tag-btn" data-tag="OpenShift">OpenShift</button>
     <button class="btn btn-outline btn-sm tag-btn" data-tag="Ansible">Ansible</button>
     <button class="btn btn-outline btn-sm tag-btn" data-tag="Automation">Automation</button>
     <button class="btn btn-outline btn-sm tag-btn" data-tag="Kubernetes">Kubernetes</button>
@@ -107,9 +112,6 @@
     <button class="btn btn-outline btn-sm tag-btn" data-tag="Bare Metal">Bare Metal</button>
     <button class="btn btn-outline btn-sm tag-btn" data-tag="DevOps">DevOps</button>
     <button class="btn btn-outline btn-sm tag-btn" data-tag="Infrastructure">Infrastructure</button>
-    <button class="btn btn-outline btn-sm tag-btn" data-tag="AI">AI</button>
-    <button class="btn btn-outline btn-sm tag-btn" data-tag="Cisco">Cisco</button>
-    <button class="btn btn-outline btn-sm tag-btn" data-tag="RDMA">RDMA</button>
     <button class="btn btn-outline btn-sm tag-btn" data-tag="Resiliency">Resiliency</button>
     <button class="btn btn-outline btn-sm tag-btn" data-tag="Enterprise">Enterprise</button>
   </div>
@@ -119,6 +121,26 @@
 <div class="max-w-5xl mx-auto px-4 py-10 pb-20">
   <div id="posts-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
     
+    <div class="card bg-base-200 shadow hover:shadow-lg transition-shadow" data-tags="AI,NVAIE,OpenShift,GPU,RDMA,NCCL,Networking,Cisco">
+      <a href="posts/2026-06-21-ai-factory-best-practices-nvaie-openshift.html" class="block">
+        <figure class="h-44 overflow-hidden bg-base-300">
+          <img src="assets/images/blog/covers/2026-06-21-ai-factory-best-practices-nvaie-openshift.jpg" alt=""AI-Factory Best Practices: Deploying NVIDIA AI Enterprise on Bare-Metal OpenShift""
+               class="w-full h-full object-cover transition-opacity">
+        </figure>
+      </a>
+      <div class="card-body p-5">
+        <div class="flex flex-wrap gap-1 mb-2"><span class="badge badge-sm badge-primary">AI</span> <span class="badge badge-sm badge-ghost">NVAIE</span> <span class="badge badge-sm badge-ghost">OpenShift</span> <span class="badge badge-sm badge-ghost">GPU</span> <span class="badge badge-sm badge-ghost">RDMA</span> <span class="badge badge-sm badge-ghost">NCCL</span> <span class="badge badge-sm badge-ghost">Networking</span> <span class="badge badge-sm badge-ghost">Cisco</span></div>
+        <h2 class="card-title text-base leading-snug">
+          <a href="posts/2026-06-21-ai-factory-best-practices-nvaie-openshift.html" class="hover:text-primary transition-colors">"AI-Factory Best Practices: Deploying NVIDIA AI Enterprise on Bare-Metal OpenShift"</a>
+        </h2>
+        <p class="text-sm text-base-content/60 line-clamp-3">Standing up a production GPU cluster is more than installing an operator. Three network planes, a dedicated MachineConfigPool for GPU nodes, a driver-load race between two operators, and a validation suite that has to prove the fabric before anyone trains a model on it — here's the full build sequence, distilled into a public reference repo.</p>
+        <div class="card-actions justify-between items-center mt-3">
+          <span class="text-xs text-base-content/40"><i class="fas fa-calendar mr-1"></i>2026-06-21</span>
+          <a href="posts/2026-06-21-ai-factory-best-practices-nvaie-openshift.html" class="btn btn-primary btn-xs">Read &rarr;</a>
+        </div>
+      </div>
+    </div>
+
     <div class="card bg-base-200 shadow hover:shadow-lg transition-shadow" data-tags="Enterprise AI,Redis,Rate Limiting,WebSocket,Security,HMAC,Getraind,Docker">
       <a href="posts/2026-06-20-redis-enterprise-ai.html" class="block">
         <figure class="h-44 overflow-hidden bg-base-300">
@@ -302,7 +324,7 @@
     <div class="card bg-base-200 shadow hover:shadow-lg transition-shadow" data-tags="OpenShift,Ansible,Automation,Kubernetes,Red Hat,Bare Metal,DevOps,Infrastructure">
       <a href="posts/2026-06-02-deploying-openshift-with-ansible.html" class="block">
         <figure class="h-44 overflow-hidden bg-base-300">
-          <img src="assets/images/blog/covers/InfrastrucreAsCode.png" alt=""Deploying OpenShift with Ansible: A Production-Grade Automation Playbook""
+          <img src="assets/images/blog/covers/InfrastructureAsCode.png" alt=""Deploying OpenShift with Ansible: A Production-Grade Automation Playbook""
                class="w-full h-full object-cover transition-opacity">
         </figure>
       </a>

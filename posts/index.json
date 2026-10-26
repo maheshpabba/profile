@@ -1,5 +1,22 @@
 [
   {
+    "slug": "2026-06-21-ai-factory-best-practices-nvaie-openshift",
+    "title": "\"AI-Factory Best Practices: Deploying NVIDIA AI Enterprise on Bare-Metal OpenShift\"",
+    "date": "2026-06-21",
+    "excerpt": "Standing up a production GPU cluster is more than installing an operator. Three network planes, a dedicated MachineConfigPool for GPU nodes, a driver-load race between two operators, and a validation suite that has to prove the fabric before anyone trains a model on it — here's the full build sequence, distilled into a public reference repo.",
+    "tags": [
+      "AI",
+      "NVAIE",
+      "OpenShift",
+      "GPU",
+      "RDMA",
+      "NCCL",
+      "Networking",
+      "Cisco"
+    ],
+    "image": "assets/images/blog/covers/2026-06-21-ai-factory-best-practices-nvaie-openshift.jpg"
+  },
+  {
     "slug": "2026-06-20-redis-enterprise-ai",
     "title": "\"Redis in Enterprise AI: Rate Limiting, Token Security, and Session Management\"",
     "date": "2026-06-20",
@@ -159,7 +176,7 @@
       "DevOps",
       "Infrastructure"
     ],
-    "image": "assets/images/blog/covers/InfrastrucreAsCode.png"
+    "image": "assets/images/blog/covers/InfrastructureAsCode.png"
   },
   {
     "slug": "2026-05-20-ai-clusters-cisco-ucs",

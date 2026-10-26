@@ -3,7 +3,7 @@ title: "Deploying OpenShift with Ansible: A Production-Grade Automation Playbook
 date: 2026-06-02
 tags: OpenShift, Ansible, Automation, Kubernetes, Red Hat, Bare Metal, DevOps, Infrastructure
 excerpt: Deploying OpenShift on bare-metal servers is a multi-step orchestration problem — authentication, cluster creation, static networking, ISO booting via Redfish, host discovery, and post-install operators. Here's a complete walkthrough of an Ansible automation framework that handles all of it, including idempotent state management and Day-2 operations.
-image: assets/images/blog/covers/InfrastrucreAsCode.png
+image: assets/images/blog/covers/InfrastructureAsCode.png
 ---
 
 # Deploying OpenShift with Ansible: A Production-Grade Automation Playbook
