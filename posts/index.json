@@ -2,7 +2,7 @@
   {
     "slug": "2026-06-21-ai-factory-best-practices-nvaie-openshift",
     "title": "\"AI-Factory Best Practices: The Order of Operations for NVAIE on Bare-Metal OpenShift\"",
-    "date": "2026-06-21",
+    "date": "2026-10-26",
     "excerpt": "Standing up a GPU training cluster isn't a checklist you can run in any order. Rail-optimized fabric design, two operators that both touch the same kernel modules, secondary CNIs so pods can see RDMA NICs, and a validation stage that has to prove the fabric before anyone trains on it — sequence is the whole story. Here's the build order, end to end.",
     "tags": [
       "AI",
