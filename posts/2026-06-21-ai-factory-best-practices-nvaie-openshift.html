@@ -4,20 +4,20 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Standing up a production GPU cluster is more than installing an operator. Three network planes, a dedicated MachineConfigPool for GPU nodes, a driver-load race between two operators, and a validation suite that has to prove the fabric before anyone trains a model on it — here's the full build sequence, distilled into a public reference repo.">
+  <meta name="description" content="Standing up a GPU training cluster isn't a checklist you can run in any order. Rail-optimized fabric design, two operators that both touch the same kernel modules, secondary CNIs so pods can see RDMA NICs, and a validation stage that has to prove the fabric before anyone trains on it — sequence is the whole story. Here's the build order, end to end.">
   <meta name="author" content="Mahesh Pabba">
 
   <!-- Open Graph (LinkedIn / Twitter preview) -->
-  <meta property="og:title" content=""AI-Factory Best Practices: Deploying NVIDIA AI Enterprise on Bare-Metal OpenShift"">
-  <meta property="og:description" content="Standing up a production GPU cluster is more than installing an operator. Three network planes, a dedicated MachineConfigPool for GPU nodes, a driver-load race between two operators, and a validation suite that has to prove the fabric before anyone trains a model on it — here's the full build sequence, distilled into a public reference repo.">
+  <meta property="og:title" content=""AI-Factory Best Practices: The Order of Operations for NVAIE on Bare-Metal OpenShift"">
+  <meta property="og:description" content="Standing up a GPU training cluster isn't a checklist you can run in any order. Rail-optimized fabric design, two operators that both touch the same kernel modules, secondary CNIs so pods can see RDMA NICs, and a validation stage that has to prove the fabric before anyone trains on it — sequence is the whole story. Here's the build order, end to end.">
   <meta property="og:image" content="https://maheshpabba.com/assets/images/blog/covers/2026-06-21-ai-factory-best-practices-nvaie-openshift.jpg">
   <meta property="og:type" content="article">
   <meta property="og:url" content="https://maheshpabba.com/posts/2026-06-21-ai-factory-best-practices-nvaie-openshift.html">
   <meta property="article:published_time" content="2026-06-21">
   <meta property="article:author" content="Mahesh Pabba">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content=""AI-Factory Best Practices: Deploying NVIDIA AI Enterprise on Bare-Metal OpenShift"">
-  <meta name="twitter:description" content="Standing up a production GPU cluster is more than installing an operator. Three network planes, a dedicated MachineConfigPool for GPU nodes, a driver-load race between two operators, and a validation suite that has to prove the fabric before anyone trains a model on it — here's the full build sequence, distilled into a public reference repo.">
+  <meta name="twitter:title" content=""AI-Factory Best Practices: The Order of Operations for NVAIE on Bare-Metal OpenShift"">
+  <meta name="twitter:description" content="Standing up a GPU training cluster isn't a checklist you can run in any order. Rail-optimized fabric design, two operators that both touch the same kernel modules, secondary CNIs so pods can see RDMA NICs, and a validation stage that has to prove the fabric before anyone trains on it — sequence is the whole story. Here's the build order, end to end.">
   <meta name="twitter:image" content="https://maheshpabba.com/assets/images/blog/covers/2026-06-21-ai-factory-best-practices-nvaie-openshift.jpg">
 
   <link rel="shortcut icon" href="../favicon.ico">
@@ -64,7 +64,7 @@
 
 <!-- Hero banner -->
 <div class="w-full h-64 overflow-hidden relative">
-  <img src="../assets/images/blog/covers/2026-06-21-ai-factory-best-practices-nvaie-openshift.jpg" alt=""AI-Factory Best Practices: Deploying NVIDIA AI Enterprise on Bare-Metal OpenShift"" class="w-full h-full object-cover opacity-40">
+  <img src="../assets/images/blog/covers/2026-06-21-ai-factory-best-practices-nvaie-openshift.jpg" alt=""AI-Factory Best Practices: The Order of Operations for NVAIE on Bare-Metal OpenShift"" class="w-full h-full object-cover opacity-40">
   <div class="absolute inset-0 bg-gradient-to-t from-base-100 to-transparent"></div>
 </div>
 
@@ -72,8 +72,8 @@
 
   <!-- Post header -->
   <div class="mb-10">
-    <div class="flex flex-wrap gap-2 mb-4"><span class="badge badge-ghost badge-sm">AI</span> <span class="badge badge-ghost badge-sm">NVAIE</span> <span class="badge badge-ghost badge-sm">OpenShift</span> <span class="badge badge-ghost badge-sm">GPU</span> <span class="badge badge-ghost badge-sm">RDMA</span> <span class="badge badge-ghost badge-sm">NCCL</span> <span class="badge badge-ghost badge-sm">Networking</span> <span class="badge badge-ghost badge-sm">Cisco</span></div>
-    <h1 class="text-3xl lg:text-4xl font-bold leading-tight mb-4">"AI-Factory Best Practices: Deploying NVIDIA AI Enterprise on Bare-Metal OpenShift"</h1>
+    <div class="flex flex-wrap gap-2 mb-4"><span class="badge badge-ghost badge-sm">AI</span> <span class="badge badge-ghost badge-sm">NVAIE</span> <span class="badge badge-ghost badge-sm">OpenShift</span> <span class="badge badge-ghost badge-sm">GPU</span> <span class="badge badge-ghost badge-sm">RDMA</span> <span class="badge badge-ghost badge-sm">NCCL</span> <span class="badge badge-ghost badge-sm">Rail-Optimized</span> <span class="badge badge-ghost badge-sm">Multus</span></div>
+    <h1 class="text-3xl lg:text-4xl font-bold leading-tight mb-4">"AI-Factory Best Practices: The Order of Operations for NVAIE on Bare-Metal OpenShift"</h1>
     <div class="flex items-center gap-4 text-sm text-base-content/40">
       <span><i class="fas fa-user mr-1"></i> Mahesh Pabba</span>
       <span><i class="fas fa-calendar mr-1"></i> 2026-06-21</span>
@@ -84,91 +84,267 @@
 
   <!-- Article body -->
   <article class="prose max-w-none">
-    <p>Every NVIDIA AI Enterprise (NVAIE) deployment on OpenShift follows roughly the same sequence — and almost nobody writes it down in one place. The official docs cover each operator in isolation; the gaps between them (which order to install things in, which node labels gate which component, what a driver-load race actually looks like in practice) get relearned by every team that builds one of these clusters.</p>
-<p>I turned the sequence I use into a public reference: <a href="https://github.com/maheshpabba/AI-Factory-Best-Practices"><strong>maheshpabba/AI-Factory-Best-Practices</strong></a>. It mirrors an internal AI-Factory build document section by section, with every section linking to the actual manifests, scripts, and test artifacts that implement it — not just prose.</p>
-<p>This post walks through the architecture decisions behind it.</p>
+    <p>Most NVIDIA AI Enterprise (NVAIE) deployment guides read like a parts catalog: here's the Network Operator, here's the GPU Operator, here's how to run an NCCL test. What they don't tell you is that <strong>two of those operators write to the same kernel modules on the same nodes</strong>, and if you install them in the wrong order — or without the one label that gates them — you get an intermittent driver-load race that looks like flaky hardware and isn't.</p>
+<p>This is the build sequence I use, written up as a public reference: <a href="https://github.com/maheshpabba/AI-Factory-Best-Practices"><strong>maheshpabba/AI-Factory-Best-Practices</strong></a>. Every section below links to the actual manifests in that repo. The sequence matters more than any individual YAML file, so that's the spine of this post.</p>
 <hr />
-<h2 id="three-networks-not-one">Three Networks, Not One</h2>
-<p>A GPU worker node in this design carries three logically separate network planes:</p>
-<ul>
-<li><strong>Frontend / primary CNI</strong> — the OpenShift SDN plane, used for node management and general cluster traffic.</li>
-<li><strong>East/West compute (scale-out) RDMA fabric</strong> — the high-speed interconnect NCCL collectives run across, node to node.</li>
-<li><strong>Storage / backend fabric</strong> — isolated from compute traffic so a saturated training job doesn't starve storage I/O, or vice versa.</li>
-</ul>
-<p>Getting this right starts before the cluster exists. Before you ever open the Assisted Installer, you need every node's hostname, MAC address, static IP/subnet/gateway, plus cluster DNS/NTP/VIPs — captured in a table, then converted into <a href="https://nmstate.io/">NMState</a> YAML so the install is unattended and repeatable instead of a sequence of manual web-console clicks per node.</p>
-<p>Doing this by hand for more than a handful of nodes is where mistakes creep in — a transposed MAC address, a wrong VLAN — so the repo includes <a href="https://github.com/maheshpabba/AI-Factory-Best-Practices/blob/Dev/Scripts/cluster-utility.sh"><code>Scripts/cluster-utility.sh</code></a> and its PowerShell twin, <code>cluster-utility.ps1</code>. They discover nodes by name or role, print RDMA device/PCIe/interface tables filtered by adapter family (ConnectX-7, ConnectX-8, BlueField), and generate <code>NodeNetworkConfigurationPolicy</code> (NNCP) YAML directly from what they find on the hardware — rather than from a spreadsheet that can drift out of sync with reality.</p>
-<hr />
-<h2 id="nmstate-declarative-network-state-reconciled-continuously">NMState: Declarative Network State, Reconciled Continuously</h2>
-<p>Once the cluster exists, the NMState Operator takes over ongoing network configuration. The model is simple but easy to get backwards the first time:</p>
-<ul>
-<li><strong>NNCP</strong> (<code>NodeNetworkConfigurationPolicy</code>) — the <em>desired</em> state you declare: interfaces, MTU, VLANs, for one or more nodes.</li>
-<li><strong>NNS</strong> (<code>NodeNetworkState</code>) — the <em>read-only current state</em> NMState reports back, per node.</li>
-</ul>
-<p>You write NNCPs; NMState reconciles live interfaces toward them and reports NNS back so you can verify convergence. The <a href="https://github.com/maheshpabba/AI-Factory-Best-Practices/blob/Dev/nmstate"><code>nmstate/</code></a> directory in the repo holds the actual <code>nncp-*.yaml</code> and <code>nns-*.yaml</code> objects used on this cluster's workers — generated by the same <code>cluster-utility</code> script and applied with a plain <code>oc apply -f</code>.</p>
-<hr />
-<h2 id="a-dedicated-machineconfigpool-for-gpu-nodes">A Dedicated MachineConfigPool for GPU Nodes</h2>
-<p>GPU worker nodes need kernel-level changes that the rest of the cluster should never see:</p>
-<ul>
-<li>Blacklist the inbox <code>irdma</code> / <code>rpcrdma</code> kernel modules — they conflict with the NVIDIA/Mellanox MOFED driver stack.</li>
-<li>Disable IOMMU.</li>
-<li>Configure huge pages.</li>
-</ul>
-<p>Apply these cluster-wide and every node reboots to pick them up, including nodes that will never touch a GPU. The fix is a dedicated <code>MachineConfigPool</code> — <a href="https://github.com/maheshpabba/AI-Factory-Best-Practices/blob/Dev/Misc/custom-role-gpuworker.yaml"><code>Misc/custom-role-gpuworker.yaml</code></a> — scoped to a custom <code>gpu-worker</code> role, so only the nodes that opted into that role ever reboot for these changes.</p>
-<hr />
-<h2 id="the-operator-stack-and-the-race-condition-between-two-of-them">The Operator Stack — and the Race Condition Between Two of Them</h2>
-<p>NVIDIA AI Enterprise on OpenShift is really four operators working together:</p>
-<table>
-<thead>
-<tr>
-<th>Component</th>
-<th>Responsibility</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Node Feature Discovery</td>
-<td>Labels nodes with detected PCI/GPU/NIC hardware so the operators below can target the right ones</td>
-</tr>
-<tr>
-<td>NVIDIA Maintenance Operator</td>
-<td>Coordinates cordon/drain for firmware updates and driver reloads</td>
-</tr>
-<tr>
-<td>NVIDIA Network Operator</td>
-<td>Provisions MOFED/DOCA-OFED, the RDMA device plugin, and NIC QoS/VLAN configuration</td>
-</tr>
-<tr>
-<td>NVIDIA GPU Operator</td>
-<td>Provisions the GPU driver, container toolkit, device plugin, and DCGM monitoring</td>
-</tr>
-</tbody>
-</table>
-<p>The Network Operator and the GPU Operator both load kernel modules on the same nodes — and if they do it at the same time, you get a race condition that manifests as intermittent driver load failures that are maddening to debug after the fact, because the symptom shows up on a random subset of nodes on a random day.</p>
-<p>The fix lives in how the GPU Operator is configured. Rather than letting <code>ClusterPolicy</code> manage the GPU driver directly, the repo splits driver management out:</p>
-<ul>
-<li><code>ClusterPolicy</code> configures every GPU Operator component <strong>except</strong> the driver (<code>driver.enabled: false</code>, <code>driver.useNvidiaDriverCRD: true</code>) — see <a href="https://github.com/maheshpabba/AI-Factory-Best-Practices/blob/Dev/GPU-Operator/gpu-cluster-policy.yaml"><code>GPU-Operator/gpu-cluster-policy.yaml</code></a>.</li>
-<li>A separate <code>NVIDIADriver</code> object, per node (<a href="https://github.com/maheshpabba/AI-Factory-Best-Practices/blob/Dev/GPU-Operator/gpu-driver.yaml"><code>GPU-Operator/gpu-driver.yaml</code></a>), supplies the driver itself — gated on the Network Operator's <code>network.nvidia.com/operator.mofed.wait</code> node label.</li>
-</ul>
-<p>The GPU driver simply doesn't load until the Network Operator has finished its own kernel module work and cleared that label. Two operators, one shared resource, one explicit ordering gate instead of a hope that timing works out.</p>
-<p>On the networking side, <code>NicClusterPolicy</code> handles the cluster-wide singleton components (DOCA telemetry, the NIC Configuration Operator), <code>NicNodePolicy</code> handles the per-node DOCA-OFED driver and RDMA shared device plugin selected by hostname, and <code>NicConfigurationTemplate</code> tunes RoCEv2 QoS — PFC, ECN, trust mode — separately for the backend/compute fabric and the storage fabric.</p>
-<hr />
-<h2 id="testing-two-independent-paths-to-the-same-answer">Testing: Two Independent Paths to the Same Answer</h2>
-<p>A cluster that <em>installs</em> cleanly and a cluster that's actually ready for distributed training are two different claims. The repo validates the fabric two ways, deliberately kept independent of each other:</p>
+<h2 id="why-sequence-is-the-whole-problem">Why Sequence Is the Whole Problem</h2>
+<p>A GPU worker node in this design ends up running, at minimum: the OpenShift SDN, the NMState Operator, a custom <code>MachineConfigPool</code> with blacklisted kernel modules, the Node Feature Discovery operator, the NVIDIA Maintenance Operator, the NVIDIA Network Operator (which loads the MOFED/DOCA-OFED driver), and the NVIDIA GPU Operator (which loads the NVIDIA driver). Every one of those has a dependency on the step before it:</p>
 <ol>
-<li><strong>Hand-written Kubeflow <code>MPIJob</code> / <code>TrainJob</code> manifests</strong> — full control over NCCL environment variables and privileged pods, used as an independent baseline that doesn't depend on any NVIDIA tooling being correctly configured.</li>
-<li><strong>NVIDIA's <code>nvcrectl</code> Cluster Readiness Engine</strong> — <code>WorkloadRun</code> / <code>Certification</code> CRDs, producing NVIDIA's standard certification report format.</li>
+<li><strong>Network planes and node identity have to exist before the cluster does.</strong> The Assisted Installer binds static IPs to MAC addresses, not hostnames — get that table wrong and you silently hand the wrong IP to the wrong physical box.</li>
+<li><strong>GPU nodes have to be labeled and isolated into their own <code>MachineConfigPool</code> before any kernel-level config lands</strong>, or every node in the cluster reboots for a change that only GPU workers need.</li>
+<li><strong>Node Feature Discovery has to run before the Network Operator and GPU Operator do anything</strong>, because both of them schedule based on labels NFD writes (<code>feature.node.kubernetes.io/pci-15b3.present=true</code> and friends). Skip it and their pods either don't schedule, or schedule onto nodes without the hardware they need.</li>
+<li><strong>The Network Operator's NIC driver has to be ready before the GPU Operator's driver loads</strong> — not "roughly around the same time," but gated on an actual Kubernetes label. This is the one most guides skip, and it's the one that actually breaks clusters.</li>
+<li><strong>The fabric has to be validated with a real multi-node, multi-GPU workload before anyone trusts it for training</strong> — a cluster that <em>installs</em> cleanly and a cluster that's <em>ready for distributed training</em> are different claims, and the gap between them is exactly where RDMA, QoS, and NCCL tuning live.</li>
 </ol>
-<p>Both paths exercise the same NCCL collectives — AllGather, AllReduce, AllToAll, ReduceScatter — plus a short Nemotron5 Megatron-LM training smoke test, and a continuous RDMA QoS/PFC fairness test under sustained load. If the hand-written path and the vendor-tooling path agree, you've validated both the fabric and the tooling. If they disagree, you've found a bug before a researcher does.</p>
-<p>Running <code>nvcrectl</code> workloads requires a mutating admission webhook for the privileged/macvlan access the test pods need — the same <code>cluster-utility.sh</code> script handles that too, via <code>-T prepare/status/cleanup</code>, documented in <a href="https://github.com/maheshpabba/AI-Factory-Best-Practices/blob/Dev/Scripts/cluster-utility.md"><code>Scripts/cluster-utility.md</code></a>.</p>
+<p>Everything below follows that order.</p>
 <hr />
-<h2 id="publishing-infrastructure-docs-without-leaking-infrastructure">Publishing Infrastructure Docs Without Leaking Infrastructure</h2>
-<p>The one piece of this repo that isn't a manifest or a script is a policy: what gets published and what doesn't.</p>
-<p>The repository runs two branches on purpose. <code>Dev</code> is the working collection — environment-specific examples, real node names, real addresses, in-progress scripts. <code>main</code> contains only material that's been explicitly reviewed and approved for public visibility. Nothing gets merged or cherry-picked from <code>Dev</code> into <code>main</code>; publishing means building a clean snapshot of specific files on top of <code>main</code>, reviewing the staged diff, and committing that — every time, not as a one-off.</p>
-<p>It sounds like overhead until you remember that this is a public GitHub repository, and that deleting a file later does not remove it from Git history. The appendix is the clearest example: the source document includes an example leaf switch configuration with live BGP peer passwords and admin SSH keys. The equivalent file here — <code>switch-configs/switch-config.txt</code> — is <code>.gitignore</code>'d and has never been committed to either branch. Sanitizing a file <em>before</em> its first commit is the only sanitization that actually works; everything after that is incident response.</p>
+<h2 id="step-1-rail-optimized-topology-design-the-fabric-before-you-rack-anything">Step 1: Rail-Optimized Topology — Design the Fabric Before You Rack Anything</h2>
+<p>Before any of the Kubernetes-level configuration below matters, the physical network has to be designed correctly, and for multi-node GPU training that means a <strong>rail-optimized topology</strong>.</p>
+<p>The idea: each GPU in a node has its own dedicated high-speed NIC (a ConnectX adapter, one per GPU, not shared). In a rail-optimized fabric, <strong>GPU <em>N</em> on every node connects to the same leaf switch</strong> — GPU 0 across all nodes lands on "rail 0," GPU 1 across all nodes lands on "rail 1," and so on. NCCL's collective algorithms (ring and tree reductions) are rail-aware: when GPU 0 on node A needs to talk to GPU 0 on node B, that traffic stays on a single leaf switch instead of crossing a spine. The result is lower latency and higher effective bandwidth for the exact communication pattern distributed training actually produces, instead of a topology that's merely "fast" for generic traffic.</p>
+<h3 id="before-the-rail-gpus-already-talk-to-each-other-inside-the-node">Before the Rail: GPUs Already Talk to Each Other Inside the Node</h3>
+<p>Rail-optimization is about traffic that <em>leaves</em> a node. Before NCCL ever touches the RDMA fabric, it has a much faster option available for GPUs sitting in the same server: NVSwitch.</p>
+<p>On an 8-GPU platform like NVIDIA's HGX B300, every GPU connects to <strong>two NVSwitch chips</strong> over fifth-generation NVLink — a non-blocking, all-to-all crossbar inside the node, rated at 1,800 GB/s GPU-to-GPU and roughly 14.4 TB/s aggregate across the baseboard. That's an order of magnitude more bandwidth than any inter-node RDMA link, which is exactly why NCCL treats the two domains so differently: collectives are built to do as much of the reduction as possible over NVLink/NVSwitch <em>inside</em> a node first, and only hand off across the rail-optimized fabric for the inter-node portion of the same collective. NCCL discovers this topology automatically (via NVML and the Fabric Manager topology file), so a ring or tree algorithm effectively has two tiers baked in — a fast intra-node hop over NVSwitch, then a slower inter-node hop over RDMA — without anything in the workload needing to know the difference.</p>
+<p>NVSwitch isn't just a crossbar, either — it can do math. NVLink SHARP (NVLS) lets the switch itself perform the reduction (the sum in an AllReduce, for example) on data as it streams through, instead of every GPU doing the full reduction in its own memory. NCCL exposes this as the NVLS transport, controlled by <code>NCCL_NVLS_ENABLE</code> — defaulting to <code>2</code> ("auto") in current NCCL versions, meaning it enables itself automatically whenever the hardware and topology support it, with no action needed on your part.</p>
+<p>Worth being honest about what that bought in practice on this fabric: across repeated AllReduce runs, bus bandwidth consistently landed around <strong>778 GB/s whether NVLS was enabled or explicitly disabled</strong> (<code>NCCL_NVLS_ENABLE=0</code>, visible in the hand-written MPIJob manifests in Step 6). The reduction offload is real, but on this topology and message-size range it didn't show up as a measurable win in aggregate bandwidth — the run was bound by something else in the path, not by GPU-side reduction math. That's not a reason to disable NVLS; it's a reason to actually measure it on your own fabric rather than assume the feature is moving your BusBW number just because it's enabled.</p>
+<p>This is also <em>why</em> the node-level NIC inventory in the next step matters so much: if you don't know precisely which physical NIC maps to which GPU and which rail, you can't validate that the physical cabling matches the intended topology, and a single miscabled rail shows up later as an unexplained bandwidth cliff on one specific NCCL collective — exactly the kind of problem that's expensive to diagnose after the cluster is in production and cheap to catch with an inventory pass before it is.</p>
+<p>The practical first step, before touching OpenShift at all, is inventorying every node's RDMA-capable NICs — PCIe address, interface name, and adapter family (ConnectX-7 vs. ConnectX-8 vs. a BlueField DPU, which is easy to get wrong because a BlueField's adapter string often still contains "ConnectX-7"). I got tired of doing that inventory by hand with <code>oc debug</code>/<code>lspci</code>/<code>ethtool</code> on every node, so I created <a href="https://github.com/maheshpabba/AI-Factory-Best-Practices/blob/Dev/Scripts/cluster-utility.sh"><code>Scripts/cluster-utility.sh</code></a> (and its PowerShell twin) to automate it — it's turned out to be far more handy than doing this manually: discover nodes by name or role, print a full RDMA device table filtered by adapter family, and generate the NMState manifests from what it actually finds on the hardware rather than from a spreadsheet that can drift out of sync with reality.</p>
 <hr />
-<h2 id="why-this-exists-as-a-repo-and-not-just-a-doc">Why This Exists as a Repo and Not Just a Doc</h2>
-<p>Most of what makes an AI-Factory build succeed or fail isn't a single setting — it's the ordering: NMState before cluster creation, the GPU role's <code>MachineConfigPool</code> before the operators land, the Network Operator's MOFED label before the GPU driver loads, both test paths before anyone trains on the cluster. Writing that down as prose gets stale the moment a manifest changes. Writing it down as a README that links directly to the manifests, scripts, and test results it describes means the documentation and the implementation can't drift apart without someone noticing.</p>
-<p>That's the whole premise of <a href="https://github.com/maheshpabba/AI-Factory-Best-Practices">AI-Factory-Best-Practices</a>: a build sequence you can read top to bottom, and a repo you can <code>oc apply -f</code> against, kept in the same place.</p>
+<h2 id="step-2-three-network-planes-declared-before-the-cluster-exists">Step 2: Three Network Planes, Declared Before the Cluster Exists</h2>
+<p>Every GPU worker node in this design carries three logically separate network planes:</p>
+<ul>
+<li><strong>Frontend / primary CNI</strong> — the OpenShift SDN plane: node management, the Kubernetes API, pod-to-pod traffic that doesn't need RDMA.</li>
+<li><strong>Compute (scale-out) fabric</strong> — the rail-optimized RDMA fabric from Step 1, carrying NCCL collectives (AllReduce, AllGather, AllToAll, ReduceScatter) between nodes.</li>
+<li><strong>Storage / backend fabric</strong> — kept on its own subnet and its own NICs, isolated from the compute fabric so storage I/O never competes with GPU collective traffic for bandwidth.</li>
+</ul>
+<p>Before the discovery ISO ever boots, build a single inventory table — one row per host, with columns for hostname, MAC address, static IP/subnet/gateway for each of the three planes above, plus the cluster-wide DNS servers, NTP servers, and API/Ingress VIPs. That table is what gets converted to NMState-formatted YAML and pasted into the Assisted Installer's static network configuration step, so every host comes up with the right plane wired correctly on first boot — no per-host manual network setup in the UI.</p>
+<hr />
+<h2 id="step-3-isolate-gpu-nodes-before-any-kernel-change-lands">Step 3: Isolate GPU Nodes Before Any Kernel Change Lands</h2>
+<p>Once the cluster is up, two things happen exactly once, before any operator touches the nodes:</p>
+<p><strong>Label the GPU workers into their own role.</strong> This is what lets every GPU-specific <code>MachineConfig</code> target only those nodes:</p>
+<pre class="codehilite"><code class="language-bash">oc label node worker-0 node-role.kubernetes.io/gpuworker=
+oc label node worker-1 node-role.kubernetes.io/gpuworker=
+</code></pre>
+
+<p><strong>Create a dedicated <code>MachineConfigPool</code></strong> scoped to that role, then apply a <code>MachineConfig</code> that blacklists the inbox <code>irdma</code>/<code>rpcrdma</code> kernel modules (they conflict with the NVIDIA/Mellanox MOFED stack), disables IOMMU, and configures huge pages:</p>
+<pre class="codehilite"><code class="language-yaml">apiVersion: machineconfiguration.openshift.io/v1
+kind: MachineConfigPool
+metadata:
+  name: gpu-worker
+  labels:
+    worker.type: gpu-worker
+spec:
+  machineConfigSelector:
+    matchExpressions:
+      - key: machineconfiguration.openshift.io/role
+        operator: In
+        values: [worker, gpu-worker]
+  nodeSelector:
+    matchLabels:
+      node-role.kubernetes.io/gpu-worker: &quot;&quot;
+</code></pre>
+
+<h3 id="why-the-label-and-the-pool-not-just-a-machineconfig">Why the Label and the Pool, Not Just a <code>MachineConfig</code></h3>
+<p>This is worth spelling out, because the payoff isn't just "fewer reboots" — it's specifically about how OpenShift's Machine Config Operator (MCO) rolls out changes.</p>
+<p>Every node in a given <code>MachineConfigPool</code> shares one rendered configuration, and the MCO updates that pool as its own independent rolling sequence: cordon a node, drain it, apply the new config, reboot, uncordon, move to the next node — one at a time (governed by <code>maxUnavailable</code>, which defaults to 1 per pool). Without the <code>gpu-worker</code> label and pool, these nodes are just ordinary members of the default <code>worker</code> pool, which means two things go wrong at once:</p>
+<ul>
+<li><strong>Every change to the default <code>worker</code> pool reboots GPU nodes too</strong> — a CRI-O config tweak, a kernel argument for an unrelated team's use case, a routine OS update — none of it is GPU-specific, but all of it would still cordon and reboot your GPU capacity along with the rest of the fleet.</li>
+<li><strong>An OpenShift cluster upgrade itself rolls node-by-node <em>within</em> a pool.</strong> If GPU nodes are mixed into the general <code>worker</code> pool, they're interleaved into that same rolling sequence with every other compute node, with no way to reason about GPU availability independently of the rest of the cluster.</li>
+</ul>
+<p>Splitting GPU nodes into their own pool fixes both: GPU-specific <code>MachineConfig</code> objects (the kernel module blacklist above, driver prep, etc.) only ever target the <code>gpu-worker</code> pool, so non-GPU workers never reboot for them — and, just as importantly, <strong>the GPU pool rolls through its own nodes one at a time</strong>, independent of the rest of the cluster's upgrade sequence. For a multi-node training job spread across several GPU workers, that's the difference between losing one node's worth of GPU capacity at a time during an upgrade and having the scheduler's GPU nodes reboot in an order you don't control relative to unrelated cluster changes. See <a href="https://github.com/maheshpabba/AI-Factory-Best-Practices/blob/Dev/Misc/custom-role-gpuworker.yaml"><code>Misc/custom-role-gpuworker.yaml</code></a> for the full pool definition.</p>
+<hr />
+<h2 id="step-4-the-nvaie-operator-stack-install-in-this-order-not-alphabetical-order">Step 4: The NVAIE Operator Stack — Install in This Order, Not Alphabetical Order</h2>
+<p>Four operators, and the order they're installed in is not interchangeable:</p>
+<ol>
+<li><strong>Node Feature Discovery</strong> — inspects every node's PCI devices, CPU features, and kernel/OS version and writes the labels everything downstream depends on. No configuration needed; just verify <code>feature.node.kubernetes.io/pci-15b3.present=true</code> shows up on the nodes with Mellanox NICs before moving on.</li>
+<li><strong>NVIDIA Maintenance Operator</strong> — provides the cordon/drain coordination the Network Operator needs for firmware updates and driver reloads, so a maintenance action drains a node before disrupting it instead of after.</li>
+<li><strong>NVIDIA Network Operator</strong> — provisions the MOFED/DOCA-OFED driver, the RDMA device plugin, and NIC QoS on the ConnectX/BlueField NICs inventoried in Step 1.</li>
+<li><strong>NVIDIA GPU Operator</strong> — provisions the GPU driver, container toolkit, device plugin, and DCGM monitoring.</li>
+</ol>
+<p>Steps 3 and 4 are where the actual conflict lives, because <strong>both operators load kernel modules on the same GPU nodes</strong>, and without coordination they can do it at the same time.</p>
+<h3 id="the-fix-one-label-as-a-gate">The Fix: One Label as a Gate</h3>
+<p>The Network Operator's <code>NicNodePolicy</code> writes a node label once its MOFED/DOCA-OFED driver is ready: <code>network.nvidia.com/operator.mofed.wait=false</code>. The GPU Operator's driver is configured to <em>wait for that label</em> before it ever loads:</p>
+<pre class="codehilite"><code class="language-yaml"># ClusterPolicy: configures every GPU Operator component EXCEPT the driver
+apiVersion: nvidia.com/v1
+kind: ClusterPolicy
+metadata:
+  name: gpu-cluster-policy
+spec:
+  driver:
+    enabled: false          # &lt;-- deliberately not managed here
+    useNvidiaDriverCRD: true
+  toolkit:
+    enabled: true
+  devicePlugin:
+    enabled: true
+  dcgm:
+    enabled: true
+  gfd:
+    enabled: true
+</code></pre>
+
+<pre class="codehilite"><code class="language-yaml"># NVIDIADriver: a separate, per-node-group object that supplies the driver —
+# gated on the Network Operator's own readiness label
+apiVersion: nvidia.com/v1alpha1
+kind: NVIDIADriver
+metadata:
+  name: gpu-driver-workers
+spec:
+  default: false
+  nodeSelector:
+    network.nvidia.com/operator.mofed.wait: &quot;false&quot;
+</code></pre>
+
+<p>Read that <code>nodeSelector</code> literally: the GPU driver pod is not created at all until the Network Operator has finished its own kernel module work on that node and flipped the gate. Two operators, one shared resource, one explicit ordering condition instead of a hope that timing works out. The full manifests are in <a href="https://github.com/maheshpabba/AI-Factory-Best-Practices/blob/Dev/GPU-Operator/gpu-cluster-policy.yaml"><code>GPU-Operator/gpu-cluster-policy.yaml</code></a> and <a href="https://github.com/maheshpabba/AI-Factory-Best-Practices/blob/Dev/GPU-Operator/gpu-driver.yaml"><code>GPU-Operator/gpu-driver.yaml</code></a>.</p>
+<p>On the Network Operator side, the split that matters is <code>NicClusterPolicy</code> (singleton, cluster-wide — DOCA telemetry, the NIC Configuration Operator) versus <code>NicNodePolicy</code> (per-node — the DOCA-OFED driver itself, the RDMA shared device plugin). Defining the same per-node component in both is rejected outright by the admission webhook, not silently merged, which is a useful forcing function: get the split wrong and you find out immediately instead of debugging a stale config weeks later. See <a href="https://github.com/maheshpabba/AI-Factory-Best-Practices/blob/Dev/network-Operator/nicclusterpolicy.yaml"><code>network-Operator/nicclusterpolicy.yaml</code></a> and <a href="https://github.com/maheshpabba/AI-Factory-Best-Practices/blob/Dev/network-Operator/nicNodePolicy.yaml"><code>network-Operator/nicNodePolicy.yaml</code></a>.</p>
+<p>One more field on <code>NicNodePolicy</code> that's easy to leave out and expensive to miss: <code>tolerations</code> for <code>node.kubernetes.io/not-ready</code> and <code>node.kubernetes.io/unreachable</code>.</p>
+<pre class="codehilite"><code class="language-yaml">  tolerations:
+    - effect: NoSchedule
+      key: node.kubernetes.io/not-ready
+      operator: Exists
+    - effect: NoSchedule
+      key: node.kubernetes.io/unreachable
+      operator: Exists
+</code></pre>
+
+<p>Without them, a MOFED driver pod that's still coming up when the node briefly reports <code>NotReady</code> (which happens routinely during the driver load itself) gets evicted by the default node-problem taints before it's finished initializing. The Network Operator's controller retries, the pod gets scheduled again, starts initializing again, and — if the node is still settling — gets evicted again. From the outside this looks like the MOFED pod endlessly restarting rather than converging, and it's easy to misdiagnose as a driver or hardware problem instead of what it actually is: the pod never being given long enough to finish starting on a node that OpenShift hasn't yet marked fully <code>Ready</code>.</p>
+<h3 id="qos-make-the-rdma-plane-actually-lossless">QoS: Make the RDMA Plane Actually Lossless</h3>
+<p>RoCEv2 only behaves as a lossless fabric if Priority Flow Control and ECN are actually configured on the NICs that carry it — left at defaults, this is the single biggest cause of inconsistent NCCL performance and packet loss under load. The Network Operator's <code>NicConfigurationTemplate</code> applies that tuning per NIC, matching the switch-side QoS classes it needs to align with. One detail worth getting right: the textbook ToS value for DSCP 24 is <code>96</code> (<code>24 x 4</code>), but that assumes the two ECN-capable bits are already being set elsewhere in the stack. If your network stack doesn't set them by default, the ToS value needs the +8 that accounts for those bits — which is why the example below uses <code>104</code>, not <code>96</code>.</p>
+<pre class="codehilite"><code class="language-yaml">apiVersion: configuration.net.nvidia.com/v1alpha1
+kind: NicConfigurationTemplate
+metadata:
+  name: compute-fabric-qos
+spec:
+  nicSelector:
+    pciAddresses: [&quot;0000:17:00.0&quot;, &quot;0000:17:00.1&quot;]   # example addresses from your inventory
+  template:
+    rawNvConfig:
+      - name: CNP_DSCP_P1       # DSCP marking the NIC uses for outgoing RoCEv2 Congestion
+        value: &quot;48&quot;             # Notification Packets (DCQCN) — priority 1
+      - name: CNP_DSCP_P2
+        value: &quot;48&quot;             # same marking, priority 2
+    roceOptimized:
+      enabled: true
+      qos:
+        trust: dscp
+        pfc: &quot;0,0,0,1,0,0,0,0&quot;   # PFC enabled on the GPU-direct traffic class
+        tos: 104                # 96 (DSCP 24 x 4) is the textbook value; add +8 here if your
+                                 # network stack doesn't set the ECN-capable bits by default —
+                                 # that's the gap between 96 and 104 above.
+</code></pre>
+
+<p>The <code>rawNvConfig</code> block above matters for the same congestion-control loop the ToS tuning is part of: RoCEv2's DCQCN scheme relies on Congestion Notification Packets (CNPs) being recognizable as their own traffic class, not lumped in with ordinary RDMA data — <code>CNP_DSCP_P1</code>/<code>P2</code> is what tells the NIC firmware which DSCP value to mark those CNPs with on priorities 1 and 2, so the switch (and the receiving NIC) can classify and prioritize them correctly instead of treating congestion feedback as just more best-effort traffic.</p>
+<hr />
+<h2 id="step-5-secondary-cnis-giving-pods-a-direct-line-to-the-rdma-nics">Step 5: Secondary CNIs — Giving Pods a Direct Line to the RDMA NICs</h2>
+<p>Here's the piece that's easy to miss: by default, a pod in OpenShift only sees the primary CNI (OVN-Kubernetes) interface. The compute and storage fabrics from Step 2 are real NICs on the host, but a pod has no way to reach them without a <strong>secondary CNI</strong>.</p>
+<p>The Network Operator deploys <a href="https://github.com/k8snetworkplumbingwg/multus-cni">Multus</a> for exactly this — it lets a pod request <em>additional</em> network interfaces beyond its primary one, each defined as a <code>NetworkAttachmentDefinition</code> (NAD). For RDMA NICs, a <code>macvlan</code>-type NAD creates a pod-visible sub-interface tied to a specific backend or storage NIC:</p>
+<pre class="codehilite"><code class="language-yaml">apiVersion: k8s.cni.cncf.io/v1
+kind: NetworkAttachmentDefinition
+metadata:
+  name: compute-fabric-nic1
+  namespace: default
+spec:
+  config: '{
+    &quot;cniVersion&quot;: &quot;0.3.1&quot;,
+    &quot;type&quot;: &quot;macvlan&quot;,
+    &quot;master&quot;: &quot;ens1f1np1&quot;,
+    &quot;mode&quot;: &quot;bridge&quot;,
+    &quot;ipam&quot;: { &quot;type&quot;: &quot;whereabouts&quot;, &quot;range&quot;: &quot;10.132.0.0/24&quot; }
+  }'
+</code></pre>
+
+<p>A pod attaches to one or more of these via an annotation, and gets both its normal OVN-Kubernetes interface <em>and</em> a direct macvlan sub-interface onto the physical RDMA NIC:</p>
+<pre class="codehilite"><code class="language-yaml">metadata:
+  annotations:
+    k8s.v1.cni.cncf.io/networks: '[{&quot;name&quot;: &quot;compute-fabric-nic1&quot;}]'
+</code></pre>
+
+<p>The actual device access is brokered by the <strong>RDMA shared device plugin</strong> that the Network Operator's <code>NicNodePolicy</code> also deploys — it exposes the backend NICs as a schedulable Kubernetes resource (<code>rdma/rdmashared</code>), so a pod requests it in <code>resources.limits</code> the same way it requests <code>nvidia.com/gpu</code>. But that request only answers <em>which</em> RDMA devices the pod is authorized to use on that node — it's a permission/quota check, not a network path. The Multus NAD annotation is the other half: it's what actually attaches the secondary NICs to the pod's network namespace, so the job — and NCCL inside it — has a real, addressable interface to reach those authorized devices through. Put together: GPU resource request from the GPU Operator's device plugin, RDMA resource request (<code>rdma/rdmashared</code>) from the Network Operator's device plugin for <em>authorization</em>, and a macvlan NAD attachment for the actual <em>network path</em> — three separate pieces that all have to line up before a pod can run GPUDirect RDMA traffic at all. Skip the NAD and the pod is authorized to use an RDMA device but has no interface to reach it through; skip the device-plugin resource request and the opposite happens — a wired interface with no authorization behind it.</p>
+<hr />
+<h2 id="step-6-prove-the-fabric-with-a-real-multi-node-multi-gpu-job">Step 6: Prove the Fabric With a Real Multi-Node, Multi-GPU Job</h2>
+<p>A cluster that installs cleanly and a cluster that's ready for distributed training are different claims, and the only way to close that gap is running an actual multi-GPU, multi-node collective — not a single-node smoke test. This cluster validates two ways, deliberately kept independent so one can be a sanity check on the other:</p>
+<p><strong>Hand-written Kubeflow <code>MPIJob</code> manifests</strong> — full control over NCCL environment variables and pod-level privileges, run across every GPU on every node in the job (for example, 2 nodes × 8 GPUs = 16 GPUs total), exercising AllGather, AllReduce, AllToAll, and ReduceScatter, plus a short multi-node pretraining smoke test on a real model so an end-to-end training job is confirmed working, not just a synthetic collective. The manifests themselves are in <a href="https://github.com/maheshpabba/AI-Factory-Best-Practices/tree/Dev/nccl-training-tests"><code>nccl-training-tests/</code></a> — one YAML per collective (<code>nccl-allgather.yaml</code>, <code>nccl-allreduce.yaml</code>, <code>nccl-alltoall.yaml</code>, <code>nccl-reducescatter.yaml</code>), the <code>nemotron5-8b.yaml</code> training smoke test, the continuous-load QoS pods (<code>rdma_qos_test.yaml</code>, <code>rdma-qos2-worker2.yaml</code>, <code>rdma-qos2-worker3.yaml</code>), and a recorded <a href="https://github.com/maheshpabba/AI-Factory-Best-Practices/blob/Dev/nccl-training-tests/tests-report.txt"><code>tests-report.txt</code></a> from an actual run of all four collectives plus the training job.</p>
+<p><strong>NVIDIA's own <code>nvcrectl</code> Cluster Readiness Engine</strong> — <code>WorkloadRun</code>/<code>Certification</code> custom resources that run the same style of collectives and produce NVIDIA's standard certification report format. Because <code>nvcrectl</code>'s test pods need privileged access and the macvlan attachments from Step 5 (which the CRD itself has no field for), the same <code>cluster-utility.sh</code> I created handles that gap too — <code>cluster-utility.sh -T prepare</code> sets up a small mutating admission webhook that patches those pods automatically, so testing itself never requires hand-editing security contexts or certs. <a href="https://github.com/maheshpabba/AI-Factory-Best-Practices/tree/Dev/nvcre-workloadruns"><code>nvcre-workloadruns/</code></a> holds the <code>WorkloadRun</code> manifests for both single-node (<code>nccl-all-reduce.yaml</code>, etc.) and cross-node, full-fabric scale-out runs (<code>nccl-all-reduce-scaleout.yaml</code>, etc.), the <code>nemotron5-8b.yaml</code>/<code>nemotron5-56b.yaml</code> training <code>WorkloadRun</code>s, and the <code>Certification</code>/<code>dcgm-*.yaml</code> manifests used for the DCGM diagnostic levels and the full certification pass.</p>
+<h3 id="where-rdma-actually-shows-up-in-these-tests">Where RDMA Actually Shows Up in These Tests</h3>
+<p>Every multi-node NCCL collective in these jobs runs over <strong>GPUDirect RDMA</strong>: data moves from GPU memory on one node, across the compute-fabric NICs from Step 2, directly into GPU memory on another node — without a round-trip through host CPU memory. A handful of NCCL/UCX environment variables are what actually steer this path, and getting them right (or wrong) is the difference between a test that uses the RDMA fabric and one that silently falls back to a slower path:</p>
+<pre class="codehilite"><code class="language-bash">NCCL_IB_DISABLE=0            # don't disable the RDMA/IB transport
+NCCL_NET_GDR_LEVEL=PHB       # allow GPUDirect RDMA at the PCIe-host-bridge level
+NCCL_IB_GID_INDEX=5          # select the correct RoCEv2 GID table entry
+UCX_NET_DEVICES=mlx5_0:1,mlx5_1:1,...   # explicit list of the RDMA devices from Step 1's inventory
+</code></pre>
+
+<p>Each worker pod attaches every one of the compute-fabric macvlan NADs from Step 5 (not just one), so NCCL has all of the node's rail-optimized NICs available and can spread collective traffic across every rail concurrently — which is the entire point of the topology from Step 1. A test that only attaches a single NIC's NAD will "work" but will never show the fabric's real aggregate bandwidth, which is a common false negative when people first wire these tests up.</p>
+<h3 id="two-report-formats-same-two-numbers-to-look-for">Two Report Formats, Same Two Numbers to Look For</h3>
+<p>The hand-written MPI path and <code>nvcrectl</code> produce differently formatted reports, but both come down to the same two numbers: <strong>average bus bandwidth</strong> across the whole run, and <strong>peak AlgBW/BusBW</strong> at the largest message size. Here's an excerpt from the recorded <a href="https://github.com/maheshpabba/AI-Factory-Best-Practices/blob/Dev/nccl-training-tests/tests-report.txt"><code>tests-report.txt</code></a> for the hand-written AllReduce job:</p>
+<pre class="codehilite"><code class="language-text">┌────────────────────────────────────────────────────────────────┐
+│  workloadrun/nccl-allreduce-2node                               │
+├────────────────────────────────────────────────────────────────┤
+│  Status:    Succeeded                                           │
+│  Scale:     cross-node (2 nodes x 8 GPUs)                       │
+│  Out of bounds values: 0 OK                                     │
+│                                                                  │
+│  Avg bus bandwidth: 206.994 GB/s                                │
+│                                                                  │
+│  Peak (16 GB message):                                          │
+│    AlgBW (out-of-place):  414.98 GB/s                           │
+│    BusBW (out-of-place):  778.08 GB/s                           │
+└──────────────────────────────────────────────────────────────┘
+</code></pre>
+
+<p><code>nvcrectl</code>'s own native report format is laid out differently, but it's the exact same two numbers underneath a <code>Status</code>/<code>Scale</code> header and a <code>Summary</code> block for pass/fail across every category tested — illustrative example, not a specific run:</p>
+<pre class="codehilite"><code class="language-text">╔════════════════════════════════════════════════════════════════╗
+║                       WorkloadRun Report                        ║
+╚════════════════════════════════════════════════════════════════╝
+
+  Name:      nccl-all-reduce-scaleout
+  Platform:  onprem
+  Nodes:     2
+
+┌────────────────────────────────────────────────────────────────┐
+│  workloadrun/nccl-all-reduce-scaleout                           │
+├────────────────────────────────────────────────────────────────┤
+│  Status:    Succeeded                                           │
+│  Scale:     full-scale                                          │
+│  Transport: IBext_v11                                           │
+│  Bandwidth:                                                     │
+│    Size       AlgBW        BusBW        Samples                 │
+│    16 GB      &lt;value&gt;      &lt;value&gt;      1                       │
+└──────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────┐
+│  Summary                                                        │
+├────────────────────────────────────────────────────────────────┤
+│  Categories:   1/1 passed                                       │
+│  Failed Nodes: none                                              │
+│  Result:       PASSED                                           │
+└──────────────────────────────────────────────────────────────┘
+</code></pre>
+
+<p>Whichever format you're reading, the same checklist applies: <code>Status: Succeeded</code> (not just "finished"), <code>Out of bounds values: 0</code> or an equivalent zero-correctness-failures line, a <code>Categories: N/N passed</code> with no entries under <code>Failed Nodes</code>, and a bandwidth number that's internally consistent with the collective being tested (see below).</p>
+<h3 id="what-a-pass-actually-means">What a Pass Actually Means</h3>
+<p>For either test path:</p>
+<ul>
+<li>The job reports <strong>Succeeded</strong>, not just "finished" — check the launcher/report exit status, not just that pods terminated.</li>
+<li><strong>Zero correctness failures</strong> from the NCCL test binary itself. A healthy-looking bandwidth number next to a correctness failure is not a pass.</li>
+<li>Bandwidth figures are internally consistent across collectives — AllToAll will always report a lower number than AllReduce/AllGather/ReduceScatter on the same hardware (its many-to-many pattern produces smaller effective per-pair messages), which is expected, not a fabric problem.</li>
+<li>For a training smoke test: loss decreases every logged iteration, the parameter norm keeps changing (proof weights are actually updating, not a stalled run), and there are zero skipped/NaN iterations for the whole run.</li>
+</ul>
+<h3 id="sustained-load-qos-doesnt-count-until-its-tested-under-contention">Sustained Load: QoS Doesn't Count Until It's Tested Under Contention</h3>
+<p>A single clean NCCL run proves the fabric works once. It doesn't prove the PFC/ECN configuration from Step 4 holds up under <em>sustained, concurrent</em> load — which is the normal state of a cluster running real training jobs. The QoS test, <a href="https://github.com/maheshpabba/AI-Factory-Best-Practices/blob/Dev/nccl-training-tests/rdma_qos_test.yaml"><code>rdma_qos_test.yaml</code></a>, runs continuous background RDMA traffic (<code>ib_write_bw --run_infinitely</code>) as two independent client/server pairs at once, deliberately without any software-side traffic tagging, so the only thing marking the traffic correctly is the NIC's own RoCE QoS policy from the <code>NicConfigurationTemplate</code>. What to check: both pairs sustain comparable bandwidth <em>simultaneously</em> — if one collapses while the other climbs, that's queue starvation, meaning PFC is present but not fair between flows, which a single-flow test would never reveal.</p>
+<hr />
+<h2 id="the-sequence-end-to-end">The Sequence, End to End</h2>
+<ol>
+<li>Design the rail-optimized topology and inventory every NIC before racking anything.</li>
+<li>Capture per-host static network config for all three planes; convert to NMState YAML for the Assisted Installer.</li>
+<li>Label GPU workers and isolate them in their own <code>MachineConfigPool</code> before any kernel-level <code>MachineConfig</code> lands.</li>
+<li>Install NFD → Maintenance Operator → Network Operator → GPU Operator, in that order, with the GPU driver gated on the Network Operator's readiness label.</li>
+<li>Tune RoCEv2 QoS on the compute and storage fabrics.</li>
+<li>Wire up secondary CNIs (Multus + macvlan NADs) so pods can actually reach the RDMA NICs the Network Operator provisioned.</li>
+<li>Validate with a real multi-node, multi-GPU job — both a hand-written MPI path and <code>nvcrectl</code> — checking correctness, not just bandwidth.</li>
+<li>Confirm QoS holds under sustained, concurrent load, not just a single clean test run.</li>
+</ol>
+<p>Skip a step, or do two of them out of order, and the failure you get almost never points at the step you actually got wrong — it shows up two steps later as an "intermittent" driver issue, a stalled pod with no network path, or a bandwidth number nobody can explain.</p>
+<p>This is also the part that's easy to lose in the pitch. Standing up an AI Factory is not a regular OpenShift cluster install with a GPU Operator bolted on, and it's definitely not the same category of problem as opening a browser tab and chatting with an LLM. Every layer above — rail topology, NMState, MachineConfigPools, two operators fighting over the same kernel modules, secondary CNIs, RDMA, sustained QoS — has to be gotten right <em>and</em> gotten right in this order, by someone who understands how a failure two layers down surfaces as a symptom two layers up. I wrote more about what that actually looks like day to day, across the rest of the stack this cluster sits inside of, in <a href="../posts/2026-05-20-ai-clusters-cisco-ucs.html">Building Enterprise AI Infrastructure: What an Architect Actually Goes Through</a>. This post is the sequence for one part of that picture — the network/operator build-out — not the whole job.</p>
+<p>The full manifests, scripts, and test artifacts for every step above are in <a href="https://github.com/maheshpabba/AI-Factory-Best-Practices">AI-Factory-Best-Practices</a>.</p>
 <hr />
 <p><em>Have questions? <a href="../contact.html">Reach out</a></em></p>
   </article>
@@ -184,7 +360,7 @@
            class="btn btn-outline btn-sm gap-2">
           <i class="fab fa-linkedin-in"></i> LinkedIn
         </a>
-        <a href="https://twitter.com/intent/tweet?url=https://maheshpabba.com/posts/2026-06-21-ai-factory-best-practices-nvaie-openshift.html&text="AI-Factory Best Practices: Deploying NVIDIA AI Enterprise on Bare-Metal OpenShift""
+        <a href="https://twitter.com/intent/tweet?url=https://maheshpabba.com/posts/2026-06-21-ai-factory-best-practices-nvaie-openshift.html&text="AI-Factory Best Practices: The Order of Operations for NVAIE on Bare-Metal OpenShift""
            target="_blank" rel="noopener"
            class="btn btn-ghost btn-sm gap-2">
           <i class="fab fa-twitter"></i> Twitter/X

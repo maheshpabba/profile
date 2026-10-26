@@ -1430,16 +1430,6 @@ If you're beginning your enterprise AI infrastructure journey, this is the seque
 
 > **Cisco Validated Design**: The RAG pipeline layer on top of this infrastructure stack is fully documented in the CVD I co-authored: [*FlashStack for Enterprise RAG Pipeline with NVIDIA NIM, NIM Operator, and RAG Blueprint*](https://www.cisco.com/c/en/us/td/docs/unified_computing/ucs/UCS_CVDs/flashstack_rag_nim.html) — a validated, end-to-end architecture for deploying enterprise RAG on Cisco UCS X-Series with Pure Storage FlashArray/FlashBlade, NVAIE, and NIM microservices on OpenShift. Published May 2025.
 
----
-
-## What's Coming Next
-
-In upcoming posts I'll go deep on each layer:
-- **RoCE v2 fabric tuning on Cisco Nexus** — PFC, ECN, DCQCN, and why buffer depth matters more than raw bandwidth
-- **NVIDIA MIG in production** — designing multi-tenant inference capacity plans on shared H100 clusters
-- **Automating Cisco Intersight with Python** — real SDK code from real enterprise deployments
-- **OpenShift AI (RHOAI) for MLOps** — model serving, pipelines, and experiment tracking on top of GPU clusters
-- **Fault injection and chaos testing** — how to validate your AI cluster's resiliency before you need it to matter
 
 ---
 

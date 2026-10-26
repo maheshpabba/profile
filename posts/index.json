@@ -1,9 +1,9 @@
 [
   {
     "slug": "2026-06-21-ai-factory-best-practices-nvaie-openshift",
-    "title": "\"AI-Factory Best Practices: Deploying NVIDIA AI Enterprise on Bare-Metal OpenShift\"",
+    "title": "\"AI-Factory Best Practices: The Order of Operations for NVAIE on Bare-Metal OpenShift\"",
     "date": "2026-06-21",
-    "excerpt": "Standing up a production GPU cluster is more than installing an operator. Three network planes, a dedicated MachineConfigPool for GPU nodes, a driver-load race between two operators, and a validation suite that has to prove the fabric before anyone trains a model on it — here's the full build sequence, distilled into a public reference repo.",
+    "excerpt": "Standing up a GPU training cluster isn't a checklist you can run in any order. Rail-optimized fabric design, two operators that both touch the same kernel modules, secondary CNIs so pods can see RDMA NICs, and a validation stage that has to prove the fabric before anyone trains on it — sequence is the whole story. Here's the build order, end to end.",
     "tags": [
       "AI",
       "NVAIE",
@@ -11,8 +11,8 @@
       "GPU",
       "RDMA",
       "NCCL",
-      "Networking",
-      "Cisco"
+      "Rail-Optimized",
+      "Multus"
     ],
     "image": "assets/images/blog/covers/2026-06-21-ai-factory-best-practices-nvaie-openshift.jpg"
   },
