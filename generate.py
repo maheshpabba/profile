@@ -383,6 +383,48 @@ def generate_blog_home(posts: list[dict]):
     print(f"  ✓ Regenerated: blog-home.html ({len(posts_sorted)} posts)")
 
 
+def _homepage_post_card(post: dict) -> str:
+    """Render a single post card for the index.html homepage section."""
+    tags_html = " ".join(
+        f'<span class="badge badge-ghost badge-sm">{t}</span>'
+        for t in post.get("tags", [])[:3]
+    )
+    img = post.get("image", "assets/images/profile-lg.jpg")
+    return f"""<div class="card bg-base-100 shadow hover:shadow-xl transition-shadow">
+        <figure><img src="{img}" alt="{post['title']}" class="h-48 w-full object-cover"></figure>
+        <div class="card-body">
+          <div class="flex flex-wrap gap-1 mb-1">{tags_html}</div>
+          <h3 class="card-title text-base">{post['title']}</h3>
+          <p class="text-sm text-base-content/70">{post['excerpt']}</p>
+          <div class="card-actions justify-end mt-2">
+            <a href="posts/{post['slug']}.html" class="btn btn-ghost btn-sm">Read more →</a>
+          </div>
+        </div>
+      </div>"""
+
+
+def update_homepage_latest_posts(posts: list[dict], count: int = 3):
+    """Replace the static placeholder cards in index.html with the N newest real posts."""
+    index_path = Path(__file__).parent / "index.html"
+    html = index_path.read_text(encoding="utf-8")
+
+    start_marker = "<!-- LATEST_POSTS_START -->"
+    end_marker = "<!-- LATEST_POSTS_END -->"
+    start = html.find(start_marker)
+    end = html.find(end_marker)
+    if start == -1 or end == -1:
+        print("  ✗ Could not find LATEST_POSTS markers in index.html -- skipped")
+        return
+
+    posts_sorted = sorted(posts, key=lambda p: p["date"], reverse=True)[:count]
+    cards_html = "\n      ".join(_homepage_post_card(p) for p in posts_sorted)
+    new_block = f"{start_marker}\n      {cards_html}\n      {end_marker}"
+
+    html = html[:start] + new_block + html[end + len(end_marker):]
+    index_path.write_text(html, encoding="utf-8")
+    print(f"  ✓ Updated: index.html Latest Blog Posts ({len(posts_sorted)} posts)")
+
+
 def generate_all():
     """Generate HTML for all .md files in posts/ and update index."""
     md_files = sorted(POSTS_DIR.glob("*.md"))
@@ -401,6 +443,7 @@ def generate_all():
 
     update_index(posts)
     generate_blog_home(posts)
+    update_homepage_latest_posts(posts)
     print("\nDone! Push to GitHub to publish.\n")
 
 
