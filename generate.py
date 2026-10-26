@@ -326,7 +326,7 @@ def generate_blog_home(posts: list[dict]):
     footer = _load("html/_footer.html").replace("__YEAR__", str(year))
 
     html = f"""<!DOCTYPE html>
-<html lang="en" data-theme="night">
+<html lang="en" data-theme="solarized-light">
 <head>
   <title>Blog — Mahesh Pabba</title>
   <meta charset="utf-8">
