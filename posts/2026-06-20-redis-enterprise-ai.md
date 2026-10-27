@@ -215,6 +215,6 @@ This post completes the software stack series. Together, these eight posts cover
 8. [Cache and Memory](/posts/2026-06-19-cache-memory-architecture.html) — How the platform gets faster and smarter over time
 9. **Redis** (this post) — The operational glue
 
-For the infrastructure that runs this stack — Cisco UCS, NVIDIA H100s, OpenShift, RoCE v2 networking — the [enterprise infrastructure post](/posts/2026-05-20-ai-clusters-cisco-ucs.html) covers every layer.
+For the infrastructure that runs this stack — Cisco UCS, NVIDIA H100s, OpenShift, RoCE v2 networking — the [enterprise infrastructure post](/posts/2026-05-20-architecting-enterprise-ai.html) covers every layer.
 
 *Questions, war stories, or implementations of your own? [Reach out](../contact.html) or find me on [LinkedIn](https://www.linkedin.com/in/maheshpabba).*

@@ -12,14 +12,14 @@
   <meta property="og:description" content="Enterprise AI isn't just about buying H100s. It's a multi-layer architecture problem involving resiliency, redundancy, load balancing, GPU scheduling, and months of decisions that nobody documents. Here's the full stack from the perspective of an enterprise AI architect working with Cisco UCS and OpenShift.">
   <meta property="og:image" content="https://maheshpabba.com/assets/images/blog/covers/AI-Infrastructure.png">
   <meta property="og:type" content="article">
-  <meta property="og:url" content="https://maheshpabba.com/posts/2026-05-20-ai-clusters-cisco-ucs.html">
+  <meta property="og:url" content="https://maheshpabba.com/posts/2026-05-20-architecting-enterprise-ai.html">
   <meta property="article:published_time" content="2026-05-20">
   <meta property="article:author" content="Mahesh Pabba">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content=""Building Enterprise AI Infrastructure: What an Architect Actually Goes Through"">
   <meta name="twitter:description" content="Enterprise AI isn't just about buying H100s. It's a multi-layer architecture problem involving resiliency, redundancy, load balancing, GPU scheduling, and months of decisions that nobody documents. Here's the full stack from the perspective of an enterprise AI architect working with Cisco UCS and OpenShift.">
   <meta name="twitter:image" content="https://maheshpabba.com/assets/images/blog/covers/AI-Infrastructure.png">
-  <link rel="canonical" href="https://maheshpabba.com/posts/2026-05-20-ai-clusters-cisco-ucs.html">
+  <link rel="canonical" href="https://maheshpabba.com/posts/2026-05-20-architecting-enterprise-ai.html">
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -30,7 +30,7 @@
     "datePublished": "2026-05-20",
     "author": {"@type": "Person", "name": "Mahesh Pabba", "url": "https://maheshpabba.com/index.html"},
     "publisher": {"@type": "Person", "name": "Mahesh Pabba"},
-    "mainEntityOfPage": "https://maheshpabba.com/posts/2026-05-20-ai-clusters-cisco-ucs.html"
+    "mainEntityOfPage": "https://maheshpabba.com/posts/2026-05-20-architecting-enterprise-ai.html"
   }
   </script>
 
@@ -123,6 +123,9 @@
 <h2 id="the-ai-infrastructure-stack">The AI Infrastructure Stack</h2>
 <p>Before we go deep, here's the complete picture of what we're building:</p>
 <pre class="codehilite"><code>┌─────────────────────────────────────────────────────────────────────────────┐
+│  9. AI Security &amp; Guardrails                                                │
+│     Cisco AI Defense / LLM Guard · Prompt Injection &amp; PII Scanning          │
+├─────────────────────────────────────────────────────────────────────────────┤
 │  8. Operations Layer                                                        │
 │     Observability · Alerting · Automated Remediation · Runbooks             │
 ├─────────────────────────────────────────────────────────────────────────────┤
@@ -517,13 +520,16 @@ show queuing interface ethernet 1/1 | include pause
 <h2 id="layer-4-cisco-compute-ucs-design-for-ai-workloads">Layer 4: Cisco Compute — UCS Design for AI Workloads</h2>
 <p>The physical compute is where most teams start the conversation, but it's more nuanced than picking a GPU model. The server configuration — BIOS, NUMA topology, PCIe topology, and Fabric Interconnect policies — dramatically affects what the upper layers can achieve.</p>
 <h3 id="cisco-ucs-server-selection">Cisco UCS Server Selection</h3>
-<p><strong>For AI Training:</strong>
-- <strong>Cisco UCS X210c M7 (X-Series blade)</strong> — 2x Intel Xeon Scalable 4th Gen + up to 4x NVIDIA H100 SXM5, managed through UCS X9508 chassis
-- <strong>Cisco UCS C240 M7 (rack server)</strong> — 2x Xeon + 8x PCIe slots, supports 8x A100/H100 PCIe variants
-- <strong>Cisco UCS C245 M8</strong> — 2x AMD EPYC 9004 + 8x NVIDIA H100 NVL — optimal for large memory/GPU ratio</p>
-<p><strong>For AI Inference:</strong>
-- <strong>Cisco UCS C220 M7</strong> — 1–2x GPU inference workloads, cost-optimized
-- <strong>Cisco UCS C245 M8</strong> — high GPU density for inference at scale with MIG slicing</p>
+<p>GPU count per node is the dividing line here, not the GPU model alone — a node needs 8 GPUs per server (with the NVLink/NVSwitch fabric to match) to be a realistic training platform. Everything below that is built for inference and edge deployment, no matter how capable the individual GPU is.</p>
+<p><strong>For AI Training (high-density, 8-GPU systems):</strong>
+- <strong>Cisco UCS C885A M8</strong> — 8x NVIDIA B300/H100 SXM with full NVSwitch fabric — the primary scale-out training platform; this is the node type referenced throughout the rest of this post.
+- <strong>Cisco UCS C880A M8</strong> — 8x NVIDIA GPU, optimized for distributed multi-node training over the scale-out RDMA fabric (8x ConnectX-8 NICs per node).
+- <strong>Cisco UCS C845A M8</strong> — up to 4x NVIDIA H100 — enough GPU-to-GPU bandwidth in-node to be usable for fine-tuning jobs, but not the 8-GPU density these true training builds need for pre-training at scale.</p>
+<p><strong>For Edge AI / Inference (Fabric-Interconnect-attached blades and low-GPU-count racks):</strong>
+- <strong>Cisco UCS X210c M8 (X-Series blade, via UCS X9508 chassis + Fabric Interconnects)</strong> — no more than 2x NVIDIA L40S or H100 per blade. This is an edge-AI and inference platform, not a training platform — the blade form factor and FI-attached design simply don't have the GPU density or in-node interconnect a training job needs.
+- <strong>Cisco UCS C240 / C225 (rack servers)</strong> — available with both AMD and NVIDIA GPU options, but these remain inference-class configurations, not training nodes, regardless of which GPU vendor is populated.
+- <strong>Cisco UCS C220 M7</strong> — 1–2x GPU inference workloads, cost-optimized.</p>
+<p>One architectural consequence of this split worth calling out: the high-density C880/C885/C845 training nodes typically connect their GPU-facing RDMA NICs directly to a dedicated leaf/spine fabric (the rail-optimized design covered later in this series), bypassing the Fabric Interconnects entirely — whereas X210c blades and FI-managed rack inference nodes route everything, including RDMA, through the FI pair. Don't assume every GPU server in the catalog uses the same network attach model.</p>
 <h3 id="server-configuration-what-the-bios-settings-actually-do">Server Configuration: What the BIOS Settings Actually Do</h3>
 <p>Most teams take default BIOS settings and wonder why RDMA or NVMe performance is 40% below expectations.</p>
 <pre class="codehilite"><code># Cisco UCS BIOS Policy settings critical for AI workloads
@@ -543,9 +549,6 @@ Memory: Bandwidth Optimized → All DIMMs populated per channel
 
 Transparent Huge Pages: Always
   └─ Reduces TLB pressure for GPU DMA memory operations
-
-SR-IOV: Enabled
-  └─ Required for GPU direct RDMA (GDR) and NIC SR-IOV for Kubernetes
 </code></pre>
 
 <h3 id="intersight-server-profile-infrastructure-as-code-approach">Intersight Server Profile — Infrastructure-as-Code Approach</h3>
@@ -579,7 +582,7 @@ def create_ai_server_profile(api_client, server_moid: str, profile_name: str):
 </code></pre>
 
 <h3 id="cisco-ucs-fabric-interconnect-the-control-plane">Cisco UCS Fabric Interconnect — The Control Plane</h3>
-<p>All UCS blade and rack servers connect through <strong>Cisco UCS Fabric Interconnects (FI)</strong>. For AI clusters, this means:</p>
+<p>X-Series blades and FI-managed rack servers — the edge/inference tier above — connect through <strong>Cisco UCS Fabric Interconnects (FI)</strong>. For these nodes, that means:</p>
 <ul>
 <li><strong>UCS 6536 Fabric Interconnect</strong> — 36x 100GbE ports, supports 400GbE unified ports</li>
 <li><strong>Pair the FIs for redundancy</strong> — each server gets one path to FI-A and one to FI-B</li>
@@ -594,13 +597,14 @@ def create_ai_server_profile(api_client, server_moid: str, profile_name: str):
               ┌────────────────▼─────────────────▼──────────────────┐
               │              UCS X9508 Chassis                       │
               │  ┌─────────────┐   ┌─────────────┐   ┌──────────┐  │
-              │  │ X210c M7 #1 │   │ X210c M7 #2 │   │  ...     │  │
-              │  │ 4x H100 SXM │   │ 4x H100 SXM │   │          │  │
+              │  │ X210c M8 #1 │   │ X210c M8 #2 │   │  ...     │  │
+              │  │ 2x H100/L40S│   │ 2x H100/L40S│   │          │  │
               │  │ Cisco VIC   │   │ Cisco VIC   │   │          │  │
               │  └─────────────┘   └─────────────┘   └──────────┘  │
               └──────────────────────────────────────────────────────┘
 </code></pre>
 
+<p>The high-density training nodes (C885/C880/C845) are the exception to this picture — their GPU-facing RDMA NICs attach directly to the dedicated leaf/spine training fabric instead of routing through this FI pair, which is why that diagram looks different (and is covered separately in the networking section of this series).</p>
 <h3 id="training-vs-inference-compute-sizing">Training vs Inference Compute Sizing</h3>
 <table>
 <thead>
@@ -614,28 +618,42 @@ def create_ai_server_profile(api_client, server_moid: str, profile_name: str):
 </thead>
 <tbody>
 <tr>
-<td>LLM Pre-training</td>
-<td>UCS X210c M7</td>
-<td>4x H100 SXM5 80GB</td>
+<td>LLM Pre-training (scale-out)</td>
+<td>UCS C885A M8</td>
+<td>8x NVIDIA B300/H100 SXM</td>
 <td>2TB+ DRAM</td>
-<td>400GbE RoCE</td>
+<td>RDMA leaf/spine, ConnectX-8</td>
+</tr>
+<tr>
+<td>LLM Pre-training (scale-out)</td>
+<td>UCS C880A M8</td>
+<td>8x NVIDIA GPU</td>
+<td>2TB+ DRAM</td>
+<td>RDMA leaf/spine, 8x ConnectX-8</td>
 </tr>
 <tr>
 <td>LLM Fine-tuning</td>
-<td>UCS C240 M7</td>
-<td>8x A100 PCIe 80GB</td>
+<td>UCS C845A M8</td>
+<td>Up to 4x NVIDIA H100</td>
 <td>1TB DRAM</td>
-<td>100GbE RoCE</td>
+<td>100–400GbE RoCE</td>
 </tr>
 <tr>
 <td>LLM Inference</td>
-<td>UCS C245 M8</td>
-<td>8x H100 NVL 94GB</td>
+<td>UCS X210c M8</td>
+<td>Up to 2x H100/L40S</td>
 <td>768GB DRAM</td>
 <td>100GbE</td>
 </tr>
 <tr>
-<td>Multi-tenant Inference</td>
+<td>Edge / Multi-tenant Inference</td>
+<td>UCS C240 / C225</td>
+<td>AMD or NVIDIA GPU (inference-class)</td>
+<td>384GB+ DRAM</td>
+<td>25–100GbE</td>
+</tr>
+<tr>
+<td>Multi-tenant Inference (MIG)</td>
 <td>UCS C220 M7</td>
 <td>2x H100 (MIG)</td>
 <td>384GB DRAM</td>
@@ -854,139 +872,19 @@ oc get node ucs-gpu-train-01 -o json | jq '.metadata.labels | to_entries[] | sel
 # Should show: gpu model, driver, PCIe topology, RDMA, NVMe, NUMA details
 </code></pre>
 
-<h3 id="step-2-nvidia-gpu-operator-full-configuration">Step 2: NVIDIA GPU Operator — Full Configuration</h3>
-<p>The <strong>GPU Operator</strong> automates driver installation, CUDA toolkit, device plugin, MIG manager, and DCGM metrics — all as containers. No baremetal software installation required.</p>
-<pre class="codehilite"><code class="language-bash"># Install GPU Operator via Helm on OpenShift
-helm repo add nvidia https://helm.ngc.nvidia.com/nvidia
-helm repo update
+<h3 id="step-2-nvidia-maintenance-operator-cordondrain-coordination">Step 2: NVIDIA Maintenance Operator — Cordon/Drain Coordination</h3>
+<p>Before the Network Operator or GPU Operator touch a node's kernel modules, the Maintenance Operator needs to be in place to coordinate it. Firmware updates, NIC resets, and driver reloads all need a node safely cordoned and drained first — without this operator, every other operator implements its own drain logic independently, which is how two operators end up disrupting the same node's running pods at once instead of one at a time.</p>
+<pre class="codehilite"><code class="language-bash"># Install the NVIDIA Maintenance Operator via OperatorHub/Helm
+helm install maintenance-operator nvidia/maintenance-operator \
+  --namespace nvidia-maintenance-operator \
+  --create-namespace
 
-# Full production configuration
-helm install gpu-operator nvidia/gpu-operator \
-  --namespace gpu-operator \
-  --create-namespace \
-  --set driver.enabled=true \
-  --set driver.version=&quot;550.54.15&quot; \
-  --set toolkit.enabled=true \
-  --set devicePlugin.enabled=true \
-  --set mig.strategy=mixed \          # Support both whole GPUs and MIG slices simultaneously
-  --set dcgmExporter.enabled=true \
-  --set dcgmExporter.serviceMonitor.enabled=true \   # Scrape by Prometheus
-  --set gfd.enabled=true \            # GPU Feature Discovery
-  --set nodeStatusExporter.enabled=true \
-  --set validator.plugin.env[0].name=WITH_WORKLOAD \
-  --set validator.plugin.env[0].value=&quot;true&quot;
-
-# Watch GPU Operator pods come up — this takes 5-10 min on first boot
-kubectl get pods -n gpu-operator -w
+# Verify its CRDs are registered
+oc get crd | grep maintenance.nvidia.com
 </code></pre>
 
-<p><strong>Expected running pods after installation:</strong></p>
-<pre class="codehilite"><code>NAME                                              READY   STATUS    
-gpu-feature-discovery-&lt;node&gt;                      1/1     Running   # Labels GPU capabilities
-nvidia-container-toolkit-daemonset-&lt;node&gt;         1/1     Running   # Container runtime hookup
-nvidia-dcgm-exporter-&lt;node&gt;                       1/1     Running   # Prometheus metrics
-nvidia-device-plugin-daemonset-&lt;node&gt;             1/1     Running   # Exposes GPUs as K8s resources
-nvidia-driver-daemonset-&lt;node&gt;                    1/1     Running   # NVIDIA kernel driver
-nvidia-mig-manager-&lt;node&gt;                         1/1     Running   # MIG partition management
-nvidia-operator-validator-&lt;node&gt;                  1/1     Running   # Validates GPU access
-</code></pre>
-
-<h3 id="step-3-mig-configuration-gpu-multi-instance-for-inference">Step 3: MIG Configuration — GPU Multi-Instance for Inference</h3>
-<p>A single H100 GPU can be partitioned into up to <strong>7 independent MIG instances</strong>, each with isolated compute, memory bandwidth, and cache. For inference serving, this is the most important GPU resource management tool available.</p>
-<p><strong>MIG Instance Profiles on H100 (80GB):</strong></p>
-<table>
-<thead>
-<tr>
-<th>Profile</th>
-<th>GPU Compute</th>
-<th>Memory</th>
-<th>Instances per GPU</th>
-<th>Use Case</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>1g.10gb</code></td>
-<td>1/7</td>
-<td>10GB</td>
-<td>7</td>
-<td>Small model inference, batch embed</td>
-</tr>
-<tr>
-<td><code>2g.20gb</code></td>
-<td>2/7</td>
-<td>20GB</td>
-<td>3</td>
-<td>Medium model inference</td>
-</tr>
-<tr>
-<td><code>3g.40gb</code></td>
-<td>3/7</td>
-<td>40GB</td>
-<td>2</td>
-<td>Large model, max 2 per GPU</td>
-</tr>
-<tr>
-<td><code>7g.80gb</code></td>
-<td>7/7</td>
-<td>80GB</td>
-<td>1</td>
-<td>Full GPU (training or huge models)</td>
-</tr>
-</tbody>
-</table>
-<p><strong>Configuring MIG via GPU Operator MIG Manager:</strong></p>
-<pre class="codehilite"><code class="language-yaml"># MIG configuration ConfigMap — applied per node via labels
-# This tells MIG Manager what partition scheme to create on each node
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: mig-parted-config
-  namespace: gpu-operator
-data:
-  config.yaml: |
-    version: v1
-    mig-configs:
-      # Inference node: 7 small instances per GPU for maximum density
-      inference-dense:
-        - devices: all
-          mig-enabled: true
-          mig-devices:
-            &quot;1g.10gb&quot;: 7            # 7x small inference per H100
-
-      # Mixed node: some training, some inference
-      mixed-workload:
-        - devices: [0,1,2,3]        # First 4 GPUs: full for training
-          mig-enabled: false
-        - devices: [4,5,6,7]        # Last 4 GPUs: MIG for inference
-          mig-enabled: true
-          mig-devices:
-            &quot;2g.20gb&quot;: 3
-            &quot;1g.10gb&quot;: 1
-
-      # Training node: MIG disabled, whole GPUs
-      training-full:
-        - devices: all
-          mig-enabled: false
-</code></pre>
-
-<pre class="codehilite"><code class="language-bash"># Apply MIG config to inference nodes via node label
-oc label node ucs-gpu-inf-01 nvidia.com/mig.config=inference-dense
-
-# Verify MIG instances created
-nvidia-smi -L
-# GPU 0: NVIDIA H100 SXM5 80GB (UUID: GPU-...)
-#   MIG 1g.10gb Device 0: (UUID: MIG-...)
-#   MIG 1g.10gb Device 1: (UUID: MIG-...)
-#   ... (7 total)
-
-# Verify K8s can see MIG resources
-kubectl describe node ucs-gpu-inf-01 | grep -A 20 &quot;Capacity:&quot;
-# nvidia.com/mig-1g.10gb: 7     ← 7 MIG slices available for scheduling
-</code></pre>
-
-<h3 id="step-4-nvidia-network-operator-rdma-for-kubernetes-pods">Step 4: NVIDIA Network Operator — RDMA for Kubernetes Pods</h3>
-<p>For distributed training, Kubernetes pods need direct RDMA access to the RoCE fabric. The <strong>Network Operator</strong> configures SR-IOV virtual functions and Multus CNI so each training pod gets its own dedicated RDMA interface.</p>
+<h3 id="step-3-nvidia-network-operator-rdma-for-kubernetes-pods">Step 3: NVIDIA Network Operator — RDMA for Kubernetes Pods</h3>
+<p>For distributed training, Kubernetes pods need direct RDMA access to the RoCE fabric. The <strong>Network Operator</strong> configures SR-IOV virtual functions and Multus CNI so each training pod gets its own dedicated RDMA interface. This has to be installed — and its driver ready — <strong>before</strong> the GPU Operator's driver loads in Step 4; both operators touch kernel modules on the same GPU nodes, and installing them in the wrong order produces an intermittent driver-load race that looks like flaky hardware and isn't. (I cover the exact node-label gate that enforces this ordering in a lot more depth in a <a href="2026-10-26-ai-factory-best-practices-nvaie-openshift.html">separate post on the NVAIE operator build sequence</a> — the short version here is just: Network Operator first, always.)</p>
 <pre class="codehilite"><code class="language-bash"># Install Network Operator
 helm install network-operator nvidia/network-operator \
   --namespace nvidia-network-operator \
@@ -1095,7 +993,138 @@ spec:
       sizeLimit: &quot;32Gi&quot;                 # Large shared memory for NCCL allreduce
 </code></pre>
 
-<h3 id="step-5-gpu-time-slicing-alternative-to-mig-for-older-gpus">Step 5: GPU Time-Slicing (Alternative to MIG for Older GPUs)</h3>
+<h3 id="step-4-nvidia-gpu-operator-full-configuration">Step 4: NVIDIA GPU Operator — Full Configuration</h3>
+<p>The <strong>GPU Operator</strong> automates driver installation, CUDA toolkit, device plugin, MIG manager, and DCGM metrics — all as containers. No baremetal software installation required. Its driver is the one half of the kernel-module race from Step 3 — on clusters where that matters, the driver is gated on a node label the Network Operator writes once its own kernel module work is done (<code>network.nvidia.com/operator.mofed.wait</code>), rather than just hoping both operators finish in a safe order.</p>
+<pre class="codehilite"><code class="language-bash"># Install GPU Operator via Helm on OpenShift
+helm repo add nvidia https://helm.ngc.nvidia.com/nvidia
+helm repo update
+
+# Full production configuration
+helm install gpu-operator nvidia/gpu-operator \
+  --namespace gpu-operator \
+  --create-namespace \
+  --set driver.enabled=true \
+  --set driver.version=&quot;550.54.15&quot; \
+  --set toolkit.enabled=true \
+  --set devicePlugin.enabled=true \
+  --set mig.strategy=mixed \          # Support both whole GPUs and MIG slices simultaneously
+  --set dcgmExporter.enabled=true \
+  --set dcgmExporter.serviceMonitor.enabled=true \   # Scrape by Prometheus
+  --set gfd.enabled=true \            # GPU Feature Discovery
+  --set nodeStatusExporter.enabled=true \
+  --set validator.plugin.env[0].name=WITH_WORKLOAD \
+  --set validator.plugin.env[0].value=&quot;true&quot;
+
+# Watch GPU Operator pods come up — this takes 5-10 min on first boot
+kubectl get pods -n gpu-operator -w
+</code></pre>
+
+<p><strong>Expected running pods after installation:</strong></p>
+<pre class="codehilite"><code>NAME                                              READY   STATUS    
+gpu-feature-discovery-&lt;node&gt;                      1/1     Running   # Labels GPU capabilities
+nvidia-container-toolkit-daemonset-&lt;node&gt;         1/1     Running   # Container runtime hookup
+nvidia-dcgm-exporter-&lt;node&gt;                       1/1     Running   # Prometheus metrics
+nvidia-device-plugin-daemonset-&lt;node&gt;             1/1     Running   # Exposes GPUs as K8s resources
+nvidia-driver-daemonset-&lt;node&gt;                    1/1     Running   # NVIDIA kernel driver
+nvidia-mig-manager-&lt;node&gt;                         1/1     Running   # MIG partition management
+nvidia-operator-validator-&lt;node&gt;                  1/1     Running   # Validates GPU access
+</code></pre>
+
+<h3 id="step-5-mig-configuration-gpu-multi-instance-for-inference">Step 5: MIG Configuration — GPU Multi-Instance for Inference</h3>
+<p>A single H100 GPU can be partitioned into up to <strong>7 independent MIG instances</strong>, each with isolated compute, memory bandwidth, and cache. For inference serving, this is the most important GPU resource management tool available.</p>
+<p><strong>MIG Instance Profiles on H100 (80GB):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Profile</th>
+<th>GPU Compute</th>
+<th>Memory</th>
+<th>Instances per GPU</th>
+<th>Use Case</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>1g.10gb</code></td>
+<td>1/7</td>
+<td>10GB</td>
+<td>7</td>
+<td>Small model inference, batch embed</td>
+</tr>
+<tr>
+<td><code>2g.20gb</code></td>
+<td>2/7</td>
+<td>20GB</td>
+<td>3</td>
+<td>Medium model inference</td>
+</tr>
+<tr>
+<td><code>3g.40gb</code></td>
+<td>3/7</td>
+<td>40GB</td>
+<td>2</td>
+<td>Large model, max 2 per GPU</td>
+</tr>
+<tr>
+<td><code>7g.80gb</code></td>
+<td>7/7</td>
+<td>80GB</td>
+<td>1</td>
+<td>Full GPU (training or huge models)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Configuring MIG via GPU Operator MIG Manager:</strong></p>
+<pre class="codehilite"><code class="language-yaml"># MIG configuration ConfigMap — applied per node via labels
+# This tells MIG Manager what partition scheme to create on each node
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mig-parted-config
+  namespace: gpu-operator
+data:
+  config.yaml: |
+    version: v1
+    mig-configs:
+      # Inference node: 7 small instances per GPU for maximum density
+      inference-dense:
+        - devices: all
+          mig-enabled: true
+          mig-devices:
+            &quot;1g.10gb&quot;: 7            # 7x small inference per H100
+
+      # Mixed node: some training, some inference
+      mixed-workload:
+        - devices: [0,1,2,3]        # First 4 GPUs: full for training
+          mig-enabled: false
+        - devices: [4,5,6,7]        # Last 4 GPUs: MIG for inference
+          mig-enabled: true
+          mig-devices:
+            &quot;2g.20gb&quot;: 3
+            &quot;1g.10gb&quot;: 1
+
+      # Training node: MIG disabled, whole GPUs
+      training-full:
+        - devices: all
+          mig-enabled: false
+</code></pre>
+
+<pre class="codehilite"><code class="language-bash"># Apply MIG config to inference nodes via node label
+oc label node ucs-gpu-inf-01 nvidia.com/mig.config=inference-dense
+
+# Verify MIG instances created
+nvidia-smi -L
+# GPU 0: NVIDIA H100 SXM5 80GB (UUID: GPU-...)
+#   MIG 1g.10gb Device 0: (UUID: MIG-...)
+#   MIG 1g.10gb Device 1: (UUID: MIG-...)
+#   ... (7 total)
+
+# Verify K8s can see MIG resources
+kubectl describe node ucs-gpu-inf-01 | grep -A 20 &quot;Capacity:&quot;
+# nvidia.com/mig-1g.10gb: 7     ← 7 MIG slices available for scheduling
+</code></pre>
+
+<h3 id="step-6-gpu-time-slicing-alternative-to-mig-for-older-gpus">Step 6: GPU Time-Slicing (Alternative to MIG for Older GPUs)</h3>
 <p>For A100 or older GPUs that don't support MIG, time-slicing allows multiple containers to share a GPU — though without memory isolation (all tenants see the same GPU memory space, so this works for smaller models only).</p>
 <pre class="codehilite"><code class="language-yaml"># ConfigMap for GPU time-slicing
 apiVersion: v1
@@ -1121,7 +1150,7 @@ data:
 oc label node ucs-gpu-a100-01 nvidia.com/device-plugin.config=time-slicing-config
 </code></pre>
 
-<h3 id="step-6-monitoring-gpu-utilization-on-openshift">Step 6: Monitoring GPU Utilization on OpenShift</h3>
+<h3 id="step-7-monitoring-gpu-utilization-on-openshift">Step 7: Monitoring GPU Utilization on OpenShift</h3>
 <p>Install the DCGM metrics stack to have visibility into what every GPU is actually doing.</p>
 <pre class="codehilite"><code class="language-yaml"># ServiceMonitor to scrape DCGM Exporter metrics into Prometheus
 apiVersion: monitoring.coreos.com/v1
@@ -1470,6 +1499,32 @@ interface Ethernet1/1-8
 </code></pre>
 
 <hr />
+<h2 id="layer-9-ai-security-guardrails-securing-genai-traffic-not-just-the-network">Layer 9: AI Security &amp; Guardrails — Securing GenAI Traffic, Not Just the Network</h2>
+<p>Everything in Layers 1–8 secures the <em>infrastructure</em> — TLS, mTLS, RBAC, network segmentation. None of it looks at what's actually inside a prompt or a model's response. A perfectly isolated, perfectly resilient inference endpoint will still happily leak a customer's PII back through a jailbroken prompt, or execute a tool call an attacker smuggled into a RAG-retrieved document. That's a different, AI-specific class of risk, and it needs its own layer — not a bullet point buried inside Layer 1.</p>
+<p>This layer sits inline between the API Gateway and the inference backend from Layer 1 — every prompt and every completion passes through it before touching a model or leaving the cluster. Two ways to build it:</p>
+<p><strong>Cisco AI Defense</strong> — a commercial option that does AI asset discovery (finding every model, agent, and GenAI app running across the environment, including shadow AI nobody provisioned through this pipeline), model risk assessment, and runtime inline guardrails: prompt injection detection, sensitive-data exfiltration prevention, and toxic/unsafe content filtering, enforced at the point of inference rather than after the fact.</p>
+<p><strong>Open-source alternative</strong> — <a href="https://github.com/protectai/llm-guard">LLM Guard</a>, <a href="https://github.com/NVIDIA/NeMo-Guardrails">NeMo Guardrails</a>, or <a href="https://github.com/guardrails-ai/guardrails">Guardrails AI</a> provide the same category of input/output scanning without a commercial license: input scanners for prompt injection, PII, and banned topics; output scanners for toxicity, bias, secrets leakage, and malicious URLs — composable as a sidecar or middleware in front of the vLLM pods from Layer 1.</p>
+<pre class="codehilite"><code>                      ┌─────────────────┐
+          Users/APIs  │  API Gateway    │  ← Layer 1: rate limiting, auth, quotas
+                      └────────┬────────┘
+                               │
+                      ┌────────▼────────┐
+                      │  AI Guardrails  │  ← Layer 9: prompt injection, PII, jailbreak,
+                      │  (inline proxy) │     toxic-content scanning — input AND output
+                      └────────┬────────┘
+                               │
+                      ┌────────▼────────┐
+                      │  Ingress / LB   │  ← Layer 1: least-connections, session affinity
+                      └──┬──────┬──────┘
+                         │      │
+              ┌──────────▼─┐  ┌─▼──────────┐
+              │  vLLM Pod  │  │  vLLM Pod  │
+              │  (GPU: 1)  │  │  (GPU: 1)  │
+              └────────────┘  └────────────┘
+</code></pre>
+
+<p>Why a separate numbered layer instead of folding it into Layer 1: the API Gateway and Ingress in Layer 1 operate on <em>transport</em> — who's calling, how many requests, is the connection encrypted. AI Defense/LLM Guard operate on <em>content</em> — what's actually being asked and what's actually being returned, which requires understanding the semantics of a prompt, not just its headers. Different failure modes, different teams usually own it (security/AI-governance rather than platform networking), and it needs its own scanning latency budget layered into the inference SLA from Layer 1 — reasons enough to track it as its own layer rather than a sub-bullet.</p>
+<hr />
 <h2 id="the-architects-checklist-decisions-to-make-before-you-procure">The Architect's Checklist — Decisions to Make Before You Procure</h2>
 <p>Here's the real order of operations that enterprise AI architects must follow:</p>
 <pre class="codehilite"><code>Phase 1: Design (Before Any Purchase Order)
@@ -1479,6 +1534,7 @@ interface Ethernet1/1-8
  □ Select storage system and size for aggregate throughput
  □ Define OpenShift cluster topology (node pools, zones, rack placement)
  □ Define GPU resource management strategy (MIG vs time-slicing per workload)
+ □ Decide AI Security/Guardrails approach (Cisco AI Defense vs. open-source LLM Guard/NeMo Guardrails) and where it sits relative to the inference SLA budget
 
 Phase 2: Procurement (In This Order)
  □ Network switches (long lead time — order first)
@@ -1498,8 +1554,9 @@ Phase 4: OpenShift + GPU Stack
  □ Deploy OpenShift 4.x on GPU node pool
  □ Apply node taints and labels per pool
  □ Install Node Feature Discovery (NFD)
- □ Install NVIDIA GPU Operator (driver, toolkit, device plugin, DCGM)
- □ Install NVIDIA Network Operator (SR-IOV, RDMA, Multus CNI)
+ □ Install NVIDIA Maintenance Operator
+ □ Install NVIDIA Network Operator (SR-IOV, RDMA, Multus CNI) — before the GPU Operator's driver, not after
+ □ Install NVIDIA GPU Operator (driver, toolkit, device plugin, DCGM), gated on Network Operator readiness
  □ Configure MIG profiles on inference nodes
  □ Deploy ResourceQuotas and PriorityClasses per team namespace
  □ Configure HPA for inference deployments
@@ -1510,6 +1567,13 @@ Phase 5: Observability + Automation
  □ Configure Prometheus alerts for GPU health metrics
  □ Build Intersight telemetry correlation pipeline
  □ Codify all configuration as Terraform/Ansible (IaC from day one)
+
+Phase 6: AI Security &amp; Guardrails (Before Any External-Facing Traffic)
+ □ Deploy an inline guardrails proxy in front of every inference endpoint (Cisco AI Defense or LLM Guard/NeMo Guardrails/Guardrails AI)
+ □ Enable input scanning: prompt injection, jailbreak attempts, PII, banned topics
+ □ Enable output scanning: toxicity, bias, secrets leakage, malicious URLs
+ □ Run AI asset discovery to catch shadow AI/models already running in the environment outside this pipeline
+ □ Load-test guardrail scanning latency and fold it into the inference SLA budget from Layer 1 — don't discover the added latency in production
 </code></pre>
 
 <hr />
@@ -1554,7 +1618,7 @@ Phase 5: Observability + Automation
 - Begin UCS server profile design in Intersight</p>
 <p><strong>Month 2: Platform Deploy</strong>
 - Deploy OpenShift with separate GPU node pools
-- Apply NFD → GPU Operator → Network Operator in that order
+- Apply NFD → Maintenance Operator → Network Operator → GPU Operator in that order — the Network Operator's RDMA/NIC driver has to be ready before the GPU Operator's driver loads, not the other way around
 - Configure MIG, SR-IOV, Multus CNI
 - Validate GPU resources visible in <code>kubectl describe node</code></p>
 <p><strong>Month 3: Workloads + Operations</strong>
@@ -1562,6 +1626,9 @@ Phase 5: Observability + Automation
 - Deploy inference services with MIG slices and HPA
 - Stand up Prometheus + DCGM + Grafana + alerts
 - Run full failure simulation: kill a switch, kill a node, kill a storage controller — verify recovery</p>
+<p><strong>Before Go-Live: AI Security</strong>
+- Put an inline guardrails proxy (Cisco AI Defense or LLM Guard/NeMo Guardrails) in front of every inference endpoint — this has to happen before external-facing traffic, not after the first incident
+- Run AI asset discovery to confirm no shadow AI/models are already exposed outside this pipeline</p>
 <hr />
 <blockquote>
 <p><strong>Cisco Validated Design</strong>: The RAG pipeline layer on top of this infrastructure stack is fully documented in the CVD I co-authored: <a href="https://www.cisco.com/c/en/us/td/docs/unified_computing/ucs/UCS_CVDs/flashstack_rag_nim.html"><em>FlashStack for Enterprise RAG Pipeline with NVIDIA NIM, NIM Operator, and RAG Blueprint</em></a> — a validated, end-to-end architecture for deploying enterprise RAG on Cisco UCS X-Series with Pure Storage FlashArray/FlashBlade, NVAIE, and NIM microservices on OpenShift. Published May 2025.</p>
@@ -1576,12 +1643,12 @@ Phase 5: Observability + Automation
     <div>
       <p class="font-semibold mb-2">Share this post</p>
       <div class="flex gap-2">
-        <a href="https://www.linkedin.com/sharing/share-offsite/?url=https://maheshpabba.com/posts/2026-05-20-ai-clusters-cisco-ucs.html"
+        <a href="https://www.linkedin.com/sharing/share-offsite/?url=https://maheshpabba.com/posts/2026-05-20-architecting-enterprise-ai.html"
            target="_blank" rel="noopener"
            class="btn btn-outline btn-sm gap-2">
           <i class="fab fa-linkedin-in"></i> LinkedIn
         </a>
-        <a href="https://twitter.com/intent/tweet?url=https://maheshpabba.com/posts/2026-05-20-ai-clusters-cisco-ucs.html&text="Building Enterprise AI Infrastructure: What an Architect Actually Goes Through""
+        <a href="https://twitter.com/intent/tweet?url=https://maheshpabba.com/posts/2026-05-20-architecting-enterprise-ai.html&text="Building Enterprise AI Infrastructure: What an Architect Actually Goes Through""
            target="_blank" rel="noopener"
            class="btn btn-ghost btn-sm gap-2">
           <i class="fab fa-twitter"></i> Twitter/X

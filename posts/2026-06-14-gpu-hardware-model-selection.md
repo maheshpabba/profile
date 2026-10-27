@@ -146,7 +146,7 @@ When models exceed a single node's GPU capacity — 405B models, or configuratio
 
 **Pipeline Parallelism** — assigns different model layers to different GPUs. Each GPU processes its layers and passes activations to the next. Lower interconnect bandwidth requirement than tensor parallel, but higher latency per token. Used for very large models (405B+) when you don't have NVLink between all GPUs.
 
-For the Cisco UCS infrastructure described in the [infrastructure post](/posts/2026-05-20-ai-clusters-cisco-ucs.html), NVLink within a node handles within-node tensor parallelism at 900 GB/s. For cross-node parallelism (models spanning multiple servers), the 400GbE RoCE v2 fabric handles the gradient and activation exchange with lossless RDMA.
+For the Cisco UCS infrastructure described in the [infrastructure post](/posts/2026-05-20-architecting-enterprise-ai.html), NVLink within a node handles within-node tensor parallelism at 900 GB/s. For cross-node parallelism (models spanning multiple servers), the 400GbE RoCE v2 fabric handles the gradient and activation exchange with lossless RDMA.
 
 ### When to Use Which
 

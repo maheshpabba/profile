@@ -18,7 +18,7 @@ This series is my attempt to document what building that capability actually loo
 
 To make this concrete throughout the series, I'll reference two things constantly:
 
-**The hardware side** — documented in my post [*Building Enterprise AI Infrastructure: What an Architect Actually Goes Through*](/posts/2026-05-20-ai-clusters-cisco-ucs.html), which covers how I design and deploy AI clusters for enterprise customers using Cisco UCS, NVIDIA H100s, OpenShift, and purpose-built RoCE v2 networking. This is what a properly resourced enterprise deployment looks like.
+**The hardware side** — documented in my post [*Building Enterprise AI Infrastructure: What an Architect Actually Goes Through*](/posts/2026-05-20-architecting-enterprise-ai.html), which covers how I design and deploy AI clusters for enterprise customers using Cisco UCS, NVIDIA H100s, OpenShift, and purpose-built RoCE v2 networking. This is what a properly resourced enterprise deployment looks like.
 
 **The software side** — documented through **[Getraind](https://www.getraind.com)**, an enterprise AI platform I built and run myself. Getraind doesn't run on Cisco UCS X-Series with eight H100s. It runs on old model servers with VMs — the kind of hardware most teams already have sitting in their data center. I built it that way deliberately, to prove that the software architecture is what defines what your AI platform can do. The primitives, the routing, the memory, the agent design — all of it works the same whether you're on a $5M GPU cluster or a repurposed server from three years ago.
 
@@ -40,7 +40,7 @@ The complete design and implementation of the platform — hardware, software, a
 
 | | Post | What It Covers |
 |---|---|---|
-| 🏗️ | [Building Enterprise AI Infrastructure](/posts/2026-05-20-ai-clusters-cisco-ucs.html) | Cisco UCS, H100s, RoCE v2 networking, OpenShift — the hardware side |
+| 🏗️ | [Building Enterprise AI Infrastructure](/posts/2026-05-20-architecting-enterprise-ai.html) | Cisco UCS, H100s, RoCE v2 networking, OpenShift — the hardware side |
 | 🔀 | [The LLM Gateway](2026-06-13-llm-gateway-enterprise-ai.html) | Role-based routing, NVAIE vs. cloud API, 60–80% cost reduction |
 | ⚙️ | [GPU Hardware and Model Selection](2026-06-14-gpu-hardware-model-selection.html) | Sizing math, tiered model strategy, NVAIE NIM on OpenShift |
 | 🎯 | [Designing AI for Your Enterprise](2026-06-15-enterprise-ai-design.html) | From business problem to agent topology |
@@ -115,7 +115,7 @@ This series covers AI implementation at two levels simultaneously, because your 
 
 **Track 1 — The Infrastructure Side (what enterprise customers deploy)**
 
-This is covered in depth in [*Building Enterprise AI Infrastructure: What an Architect Actually Goes Through*](/posts/2026-05-20-ai-clusters-cisco-ucs.html). It walks through an 8-layer hardware and platform architecture — from physical compute and lossless RoCE v2 networking up through OpenShift, NVIDIA GPU Operators, and observability. If your organization is procuring or designing dedicated AI infrastructure — Cisco UCS X-Series, NVIDIA H100s, VAST storage, Cisco Nexus 400G fabric — that post is your starting point.
+This is covered in depth in [*Building Enterprise AI Infrastructure: What an Architect Actually Goes Through*](/posts/2026-05-20-architecting-enterprise-ai.html). It walks through an 8-layer hardware and platform architecture — from physical compute and lossless RoCE v2 networking up through OpenShift, NVIDIA GPU Operators, and observability. If your organization is procuring or designing dedicated AI infrastructure — Cisco UCS X-Series, NVIDIA H100s, VAST storage, Cisco Nexus 400G fabric — that post is your starting point.
 
 For a fully validated, end-to-end deployment reference: I co-authored the Cisco Validated Design (CVD) [*FlashStack for Enterprise RAG Pipeline with NVIDIA NIM, NIM Operator, and RAG Blueprint*](https://www.cisco.com/c/en/us/td/docs/unified_computing/ucs/UCS_CVDs/flashstack_rag_nim.html) (published May 2025) — a rigorously tested architecture covering Cisco UCS X-Series, Pure Storage FlashArray/FlashBlade, NVIDIA AI Enterprise, NIM microservices, and OpenShift. It is the hardware track of this series made into a formal Cisco reference design.
 

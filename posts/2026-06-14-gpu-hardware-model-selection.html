@@ -231,7 +231,7 @@ spec:
 <p><strong>Two strategies:</strong></p>
 <p><strong>Tensor Parallelism</strong> — splits a single model layer across multiple GPUs. All GPUs must communicate for every forward pass. Requires ultra-low latency interconnect (NVLink within a node, or InfiniBand/RoCE v2 between nodes). NIM handles this automatically when you specify <code>nvidia.com/gpu: "8"</code> in the pod spec — it detects the topology and shards accordingly.</p>
 <p><strong>Pipeline Parallelism</strong> — assigns different model layers to different GPUs. Each GPU processes its layers and passes activations to the next. Lower interconnect bandwidth requirement than tensor parallel, but higher latency per token. Used for very large models (405B+) when you don't have NVLink between all GPUs.</p>
-<p>For the Cisco UCS infrastructure described in the <a href="/posts/2026-05-20-ai-clusters-cisco-ucs.html">infrastructure post</a>, NVLink within a node handles within-node tensor parallelism at 900 GB/s. For cross-node parallelism (models spanning multiple servers), the 400GbE RoCE v2 fabric handles the gradient and activation exchange with lossless RDMA.</p>
+<p>For the Cisco UCS infrastructure described in the <a href="/posts/2026-05-20-architecting-enterprise-ai.html">infrastructure post</a>, NVLink within a node handles within-node tensor parallelism at 900 GB/s. For cross-node parallelism (models spanning multiple servers), the 400GbE RoCE v2 fabric handles the gradient and activation exchange with lossless RDMA.</p>
 <h3 id="when-to-use-which">When to Use Which</h3>
 <table>
 <thead>
